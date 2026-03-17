@@ -15,7 +15,7 @@
   }
   * { margin:0; padding:0; box-sizing:border-box; }
   body { background:var(--preto); color:var(--texto); font-family:'Inter',sans-serif; min-height:100vh; }
- 
+
   header { background:linear-gradient(135deg,#0d1f14,#0a0e0b); border-bottom:1px solid var(--borda); padding:0 24px; display:flex; align-items:center; justify-content:space-between; height:64px; position:sticky; top:0; z-index:100; }
   .logo { display:flex; align-items:center; gap:10px; }
   .logo-icon { width:36px; height:36px; background:var(--verde); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:20px; }
@@ -31,16 +31,16 @@
   #btn-refresh { background:var(--verde); color:#000; border:none; border-radius:8px; padding:8px 16px; font-size:12px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px; transition:background .2s; text-transform:uppercase; letter-spacing:.5px; }
   #btn-refresh:hover { background:#00e676; }
   #btn-refresh:disabled { opacity:.5; cursor:not-allowed; }
- 
+
   .tabs { display:flex; gap:4px; padding:16px 24px 0; border-bottom:1px solid var(--borda); background:var(--preto-card); overflow-x:auto; }
   .tab { padding:10px 20px; font-size:13px; font-weight:600; color:var(--texto-dim); cursor:pointer; border-radius:8px 8px 0 0; border:1px solid transparent; border-bottom:none; transition:all .2s; white-space:nowrap; text-transform:uppercase; }
   .tab:hover { color:var(--texto); background:var(--preto-card2); }
   .tab.active { color:var(--verde); background:var(--preto); border-color:var(--borda); border-bottom-color:var(--preto); }
- 
+
   main { max-width:1100px; margin:0 auto; padding:24px 24px 60px; }
   .tab-content { display:none; }
   .tab-content.active { display:block; }
- 
+
   .rodada-bar { display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; flex-wrap:wrap; gap:12px; }
   .rodada-bar h2 { font-family:'Bebas Neue',sans-serif; font-size:28px; letter-spacing:2px; color:var(--verde); }
   .rodada-nav { display:flex; align-items:center; gap:8px; background:var(--preto-card); border:1px solid var(--borda); border-radius:10px; padding:6px 10px; }
@@ -48,7 +48,7 @@
   .rodada-nav button:hover:not(:disabled) { background:var(--borda); color:var(--verde); }
   .rodada-nav button:disabled { opacity:.3; cursor:not-allowed; }
   #rodada-label { font-weight:700; font-size:14px; min-width:80px; text-align:center; }
- 
+
   .table-wrap { background:var(--preto-card); border:1px solid var(--borda); border-radius:12px; overflow:hidden; }
   table { width:100%; border-collapse:collapse; }
   thead th { background:var(--preto-card2); padding:12px 16px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.8px; color:var(--texto-dim); text-align:left; }
@@ -68,12 +68,12 @@
   .team-owner { font-size:11px; color:var(--texto-dim); margin-top:1px; }
   .pts { font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:1px; color:var(--verde); }
   .pts-rodada { font-size:13px; color:var(--texto-dim); }
- 
+
   .turno-tabs { display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; }
   .turno-btn { padding:8px 20px; border-radius:8px; border:1px solid var(--borda); background:var(--preto-card); color:var(--texto-dim); font-size:12px; font-weight:700; cursor:pointer; text-transform:uppercase; transition:all .2s; }
   .turno-btn:hover { color:var(--verde); border-color:var(--verde-dim); }
   .turno-btn.active { background:var(--verde); color:#000; border-color:var(--verde); }
- 
+
   .rodada-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:16px; }
   .time-card { background:var(--preto-card); border:1px solid var(--borda); border-radius:12px; padding:16px; transition:border-color .2s,transform .15s; }
   .time-card:hover { border-color:var(--verde-dim); transform:translateY(-2px); }
@@ -83,7 +83,7 @@
   .card-pts.dim { font-size:13px; color:var(--texto-dim); font-family:'Inter',sans-serif; }
   .card-rank { font-size:11px; color:var(--texto-dim); text-align:right; }
   .card-rank strong { display:block; font-size:16px; color:var(--texto); font-family:'Bebas Neue',sans-serif; }
- 
+
   .config-section { background:var(--preto-card); border:1px solid var(--borda); border-radius:12px; padding:24px; margin-bottom:20px; }
   .config-section h3 { font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:1.5px; color:var(--verde); margin-bottom:16px; }
   .config-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; }
@@ -98,7 +98,7 @@
   .turno-box h4 { font-size:13px; font-weight:700; color:var(--azul); margin-bottom:12px; text-transform:uppercase; }
   .turno-box .row { display:flex; gap:10px; }
   .turno-box .row .config-field { flex:1; }
- 
+
   .empty-state { text-align:center; padding:60px 24px; color:var(--texto-dim); }
   .empty-state .icon { font-size:48px; margin-bottom:12px; }
   .historico-header, .historico-row { display:grid; align-items:center; }
@@ -107,10 +107,10 @@
   .historico-row:hover { background:rgba(0,200,83,.04); }
   .cell { text-align:center; }
   .pts-val { font-family:'Bebas Neue',sans-serif; font-size:15px; color:var(--verde); text-align:center; }
- 
+
   .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#1e2e22; border:1px solid var(--verde); color:var(--texto); padding:12px 24px; border-radius:10px; font-size:14px; font-weight:600; z-index:9999; opacity:0; transition:opacity .3s; pointer-events:none; }
   .toast.show { opacity:1; }
- 
+
   /* ── MODAL ADMIN ── */
   .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.75); backdrop-filter:blur(4px); z-index:1000; display:flex; align-items:center; justify-content:center; opacity:0; pointer-events:none; transition:opacity .25s; }
   .modal-overlay.show { opacity:1; pointer-events:all; }
@@ -128,7 +128,7 @@
   .admin-badge { display:inline-flex; align-items:center; gap:5px; background:rgba(0,200,83,.1); border:1px solid var(--verde-dim); border-radius:20px; padding:4px 12px; font-size:11px; font-weight:700; color:var(--verde); margin-bottom:20px; }
   .btn-logout { background:none; border:1px solid var(--borda); color:var(--texto-dim); border-radius:8px; padding:6px 14px; font-size:12px; cursor:pointer; transition:all .2s; }
   .btn-logout:hover { border-color:var(--vermelho); color:var(--vermelho); }
- 
+
   @media(max-width:640px) {
     header { padding:0 16px; }
     main { padding:16px 12px 40px; }
@@ -137,7 +137,7 @@
 </style>
 </head>
 <body>
- 
+
 <header>
   <div class="logo">
     <div class="logo-icon">⚽</div>
@@ -154,14 +154,14 @@
     <button id="btn-refresh" onclick="refreshAll()">↻ Atualizar</button>
   </div>
 </header>
- 
+
 <div class="tabs">
   <div class="tab active" onclick="showTab('classificacao',this)">🏆 Classificação</div>
   <div class="tab" onclick="showTab('rodada',this)">📅 Rodada</div>
   <div class="tab" onclick="showTab('historico',this)">📊 Histórico</div>
   <div class="tab" onclick="showTab('config',this)">⚙️ Configurar</div>
 </div>
- 
+
 <main>
   <div id="tab-classificacao" class="tab-content active">
     <div class="rodada-bar">
@@ -185,7 +185,7 @@
       </table>
     </div>
   </div>
- 
+
   <div id="tab-rodada" class="tab-content">
     <div class="rodada-bar">
       <h2>Rodada</h2>
@@ -199,14 +199,14 @@
       <div class="empty-state" style="grid-column:1/-1"><div class="icon">⏳</div><p>Carregando…</p></div>
     </div>
   </div>
- 
+
   <div id="tab-historico" class="tab-content">
     <div class="rodada-bar"><h2>Histórico por Rodada</h2></div>
     <div id="historico-wrap" class="table-wrap">
       <div class="empty-state"><div class="icon">⏳</div><p>Carregando…</p></div>
     </div>
   </div>
- 
+
   <div id="tab-config" class="tab-content">
     <!-- Tela bloqueada -->
     <div id="config-locked">
@@ -282,7 +282,7 @@
     </div>
   </div>
 </main>
- 
+
 <!-- Modal de login admin -->
 <div class="modal-overlay" id="modal-admin">
   <div class="modal-box">
@@ -300,13 +300,13 @@
     </div>
   </div>
 </div>
- 
+
 <div class="toast" id="toast"></div>
- 
+
 <script>
 const DEFAULT_IDS = [698657,5600270,47659601,4595756,6502610,11667690,17902624,44843587,6041390,2022786,14176921,4292213,13932513,13219253,8243749,3297653,5726199,1503663,3768883,4363777,24503273,26513136];
 const API = 'https://api.cartolafc.globo.com';
- 
+
 // Proxies CORS em ordem de prioridade
 const PROXIES = [
   u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
@@ -316,16 +316,16 @@ const PROXIES = [
   u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
 ];
 let proxyIdx = 0;
- 
+
 let cfg = loadCfg();
 let times = {}, mercado = null, rodadaAtual = 1, rodadaVisu = 1, turnoView = 'geral';
- 
+
 function loadCfg() {
   try { const s=localStorage.getItem('liga_cfg'); if(s) return JSON.parse(s); } catch(e){}
   return { nome:'Liga Cartola FC', t1ini:1, t1fim:19, t2ini:20, t2fim:38, ids:[...DEFAULT_IDS] };
 }
 function saveCfg() { localStorage.setItem('liga_cfg', JSON.stringify(cfg)); }
- 
+
 async function apiFetch(path) {
   const full = API + path;
   for (let i=0; i<PROXIES.length; i++) {
@@ -345,12 +345,12 @@ async function apiFetch(path) {
   }
   throw new Error('Todos os proxies falharam');
 }
- 
+
 function setStatus(type, text) {
   document.getElementById('status-dot').className = type;
   document.getElementById('status-text').textContent = text;
 }
- 
+
 async function initApp() {
   setStatus('loading','Conectando…');
   document.getElementById('btn-refresh').disabled = true;
@@ -369,35 +369,47 @@ async function initApp() {
   setStatus(ok?'live':'error', ok?(mercado?.status_mercado===1?'Mercado Aberto':`Rodada ${rodadaAtual}`):'Sem conexão');
   document.getElementById('btn-refresh').disabled = false;
 }
- 
+
 async function loadAllTimes() {
   await Promise.allSettled(cfg.ids.map(async id => {
     try {
       const data = await apiFetch(`/time/id/${id}`);
-      if (!times[id]) times[id]={pts:{}};
+      if (!times[id]) times[id]={pts:{},totalApi:null};
       times[id].info = data;
-      if (data.pontos!=null) times[id].pts[rodadaAtual]=data.pontos;
+      // pontos da rodada atual
+      if (data.pontos != null) times[id].pts[rodadaAtual] = data.pontos;
+      // total acumulado direto da API (campo mais confiável)
+      const totalBruto = data.pontos_campeonato ?? data.pontuacao ?? data.pontos_total ?? null;
+      if (totalBruto != null) times[id].totalApi = parseFloat(totalBruto);
     } catch(e){}
   }));
+  // Carrega rodadas passadas para garantir histórico completo
+  if (rodadaAtual > 1) {
+    for (let r = 1; r < rodadaAtual; r++) {
+      await loadRodadaHistorica(r);
+    }
+  }
 }
- 
+
 async function loadRodadaHistorica(r) {
   await Promise.allSettled(cfg.ids.map(async id => {
-    if (times[id]?.pts[r]!=null) return;
+    if (times[id]?.pts[r] != null) return;
     try {
       const data = await apiFetch(`/time/id/${id}/${r}`);
-      if (!times[id]) times[id]={pts:{}};
-      if (!times[id].info) times[id].info=data;
-      if (data.pontos!=null) times[id].pts[r]=data.pontos;
+      if (!times[id]) times[id]={pts:{},totalApi:null};
+      if (!times[id].info) times[id].info = data;
+      // tenta vários campos de pontuação por rodada
+      const p = data.pontos ?? data.pontuacao ?? data.pontos_num ?? null;
+      if (p != null) times[id].pts[r] = parseFloat(p);
     } catch(e){}
   }));
 }
- 
+
 async function refreshAll() {
   times={};
   await initApp();
 }
- 
+
 function showTab(name, el) {
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
@@ -405,7 +417,7 @@ function showTab(name, el) {
   document.getElementById('tab-'+name).classList.add('active');
   if (name==='historico') loadAndRenderHistorico();
 }
- 
+
 function setTurnoView(v, el) {
   turnoView=v;
   document.querySelectorAll('.turno-btn').forEach(b=>b.classList.remove('active'));
@@ -413,31 +425,49 @@ function setTurnoView(v, el) {
   document.getElementById('classif-titulo').textContent = {geral:'Classificação Geral',turno1:'1º Turno',turno2:'2º Turno'}[v];
   renderClassificacao();
 }
- 
+
 function faixa(tv) {
   if (tv==='turno1') return {ini:cfg.t1ini, fim:cfg.t1fim};
   if (tv==='turno2') return {ini:cfg.t2ini, fim:cfg.t2fim};
   return {ini:1, fim:rodadaAtual};
 }
- 
+
 function pontosTime(id, tv) {
-  const t=times[id]; if(!t) return {total:0,rodadas:0,ultima:null,media:'—'};
-  const {ini,fim}=faixa(tv);
-  let total=0,rodadas=0,ultima=null;
-  for (let r=ini;r<=Math.min(fim,rodadaAtual);r++) {
-    const p=t.pts[r];
-    if (p!=null){total+=p;rodadas++;ultima=p;}
+  const t = times[id];
+  if (!t) return {total:0, rodadas:0, ultima:null, media:'—'};
+
+  const {ini, fim} = faixa(tv);
+  let total = 0, rodadas = 0, ultima = null;
+
+  if (tv === 'geral' && t.totalApi != null) {
+    // usa o total acumulado diretamente da API (mais preciso)
+    total = t.totalApi;
+    // conta rodadas e pega última disponível
+    for (let r = ini; r <= Math.min(fim, rodadaAtual); r++) {
+      const p = t.pts[r];
+      if (p != null) { rodadas++; ultima = p; }
+    }
+  } else {
+    // soma manual por rodada (para turnos ou quando total da API não disponível)
+    for (let r = ini; r <= Math.min(fim, rodadaAtual); r++) {
+      const p = t.pts[r];
+      if (p != null) { total += p; rodadas++; ultima = p; }
+    }
   }
-  return {total,rodadas,ultima,media:rodadas?(total/rodadas).toFixed(1):'—'};
+
+  const media = rodadas ? (tv === 'geral' && t.totalApi != null
+    ? (total / rodadas).toFixed(1)
+    : (total / rodadas).toFixed(1)) : '—';
+  return {total, rodadas, ultima, media};
 }
- 
+
 function renderClassificacao() {
   const dados = cfg.ids.map(id=>{
     const info=times[id]?.info;
     const {total,rodadas,ultima,media}=pontosTime(id,turnoView);
     return {id,nome:info?.time?.nome||`Time #${id}`,dono:info?.time?.nome_cartola||'—',foto:info?.time?.foto_perfil||null,total,rodadas,ultima,media};
   }).sort((a,b)=>b.total-a.total);
- 
+
   const tb=document.getElementById('tbody-classif');
   if (dados.every(d=>d.total===0)) {
     tb.innerHTML=`<tr><td colspan="6"><div class="empty-state"><div class="icon">📡</div><p>Aguardando dados da API do Cartola FC…</p></div></td></tr>`;
@@ -457,12 +487,12 @@ function renderClassificacao() {
     </tr>`;
   }).join('');
 }
- 
+
 function updateNavBtns() {
   document.getElementById('btn-prev').disabled=rodadaVisu<=1;
   document.getElementById('btn-next').disabled=rodadaVisu>=rodadaAtual;
 }
- 
+
 async function navRodada(dir) {
   const nova=rodadaVisu+dir;
   if(nova<1||nova>rodadaAtual)return;
@@ -476,13 +506,13 @@ async function navRodada(dir) {
   }
   renderRodada();
 }
- 
+
 function renderRodada() {
   const dados=cfg.ids.map(id=>{
     const info=times[id]?.info;
     return {id,nome:info?.time?.nome||`Time #${id}`,dono:info?.time?.nome_cartola||'—',foto:info?.time?.foto_perfil||null,pts:times[id]?.pts[rodadaVisu]};
   }).sort((a,b)=>(b.pts??-999)-(a.pts??-999));
- 
+
   document.getElementById('rodada-grid').innerHTML=dados.map((d,i)=>{
     const av=d.foto?`<img class="team-avatar" src="${d.foto}" style="width:40px;height:40px" onerror="this.style.display='none'" />`:`<div class="team-avatar" style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:18px">⚽</div>`;
     const pts=d.pts!=null?`<span class="card-pts">${d.pts.toFixed(2)}</span>`:`<span class="card-pts dim">Aguardando…</span>`;
@@ -493,7 +523,7 @@ function renderRodada() {
     </div>`;
   }).join('');
 }
- 
+
 async function loadAndRenderHistorico() {
   document.getElementById('historico-wrap').innerHTML=`<div class="empty-state"><div class="icon">⏳</div><p>Carregando ${rodadaAtual} rodadas…</p></div>`;
   setStatus('loading','Carregando histórico…');
@@ -501,25 +531,25 @@ async function loadAndRenderHistorico() {
   setStatus('live',`Rodada ${rodadaAtual}`);
   renderHistorico();
 }
- 
+
 function renderHistorico() {
   const rodadas=Array.from({length:rodadaAtual},(_,i)=>i+1);
   const maxShow=Math.min(rodadas.length,10);
   const rShow=rodadas.slice(-maxShow);
- 
+
   const tms=cfg.ids.map(id=>{
     const info=times[id]?.info;
     const pts=rodadas.map(r=>times[id]?.pts[r]??null);
     return {nome:info?.time?.nome||`Time #${id}`,foto:info?.time?.foto_perfil||null,pts,total:pts.reduce((s,p)=>s+(p||0),0)};
   }).sort((a,b)=>b.total-a.total);
- 
+
   const cols=`40px 1fr ${rShow.map(()=>'56px').join(' ')} 68px`;
   const header=`<div class="historico-header" style="grid-template-columns:${cols}">
     <div>#</div><div>Time</div>
     ${rShow.map(r=>`<div style="text-align:center;font-size:10px">R${r}</div>`).join('')}
     <div style="text-align:center">Total</div>
   </div>`;
- 
+
   const rows=tms.map((t,i)=>{
     const av=t.foto?`<img class="team-avatar" src="${t.foto}" style="width:28px;height:28px" onerror="this.style.display='none'" />`:`<span>⚽</span>`;
     const cells=rShow.map(r=>{
@@ -533,10 +563,10 @@ function renderHistorico() {
       <div class="cell pts-val" style="font-size:18px">${t.total.toFixed(1)}</div>
     </div>`;
   }).join('');
- 
+
   document.getElementById('historico-wrap').innerHTML=header+rows;
 }
- 
+
 function fillConfigUI() {
   document.getElementById('cfg-nome').value=cfg.nome;
   document.getElementById('cfg-t1-ini').value=cfg.t1ini;
@@ -546,7 +576,7 @@ function fillConfigUI() {
   document.getElementById('cfg-ids').value=cfg.ids.join(', ');
   document.getElementById('liga-nome-header').textContent=cfg.nome;
 }
- 
+
 function salvarConfig() {
   cfg.nome=document.getElementById('cfg-nome').value.trim()||'Liga Cartola FC';
   cfg.t1ini=+document.getElementById('cfg-t1-ini').value||1;
@@ -558,7 +588,7 @@ function salvarConfig() {
   toast('✅ Configurações salvas!');
   renderClassificacao();
 }
- 
+
 function salvarIds() {
   const ids=document.getElementById('cfg-ids').value.split(/[,\s]+/).map(v=>parseInt(v)).filter(n=>!isNaN(n));
   if(!ids.length){toast('❌ Nenhum ID válido!');return;}
@@ -566,28 +596,28 @@ function salvarIds() {
   toast(`✅ ${ids.length} times salvos! Atualizando…`);
   setTimeout(refreshAll,500);
 }
- 
+
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
- 
+
 function toast(msg){
   const t=document.getElementById('toast');
   t.textContent=msg; t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),2800);
 }
- 
+
 // ── SISTEMA DE SENHA ADMIN ──────────────────────
 const SENHA_KEY = 'liga_admin_hash';
 const DEFAULT_SENHA = 'admin123'; // senha padrão inicial
- 
+
 async function hashSenha(s) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
   return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
- 
+
 function getSenhaHash() {
   return localStorage.getItem(SENHA_KEY) || null;
 }
- 
+
 async function senhaCorreta(s) {
   const stored = getSenhaHash();
   const h = await hashSenha(s);
@@ -598,20 +628,20 @@ async function senhaCorreta(s) {
   }
   return h === stored;
 }
- 
+
 let adminLogado = false;
- 
+
 function abrirModalSenha() {
   document.getElementById('modal-senha-input').value='';
   document.getElementById('senha-erro').textContent='';
   document.getElementById('modal-admin').classList.add('show');
   setTimeout(()=>document.getElementById('modal-senha-input').focus(), 200);
 }
- 
+
 function fecharModalSenha() {
   document.getElementById('modal-admin').classList.remove('show');
 }
- 
+
 async function confirmarSenha() {
   const val = document.getElementById('modal-senha-input').value;
   if (!val) { document.getElementById('senha-erro').textContent='Digite a senha.'; return; }
@@ -628,7 +658,7 @@ async function confirmarSenha() {
     document.getElementById('modal-senha-input').select();
   }
 }
- 
+
 function logoutAdmin() {
   adminLogado = false;
   document.getElementById('config-locked').style.display='block';
@@ -640,7 +670,7 @@ function logoutAdmin() {
   document.getElementById('tab-classificacao').classList.add('active');
   toast('🔒 Sessão admin encerrada.');
 }
- 
+
 async function alterarSenha() {
   const atual = document.getElementById('cfg-senha-atual').value;
   const nova  = document.getElementById('cfg-senha-nova').value;
@@ -657,14 +687,13 @@ async function alterarSenha() {
   document.getElementById('cfg-senha-conf').value='';
   toast('✅ Senha alterada com sucesso!');
 }
- 
+
 // fechar modal clicando fora
 document.getElementById('modal-admin').addEventListener('click', function(e){
   if(e.target===this) fecharModalSenha();
 });
- 
+
 initApp();
 </script>
 </body>
 </html>
- 
