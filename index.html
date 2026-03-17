@@ -415,11 +415,21 @@ function setStatus(type, text) {
 }
 
 // Extrai pontos de rodada de qualquer formato que a API retornar
+// Formata número com vírgula igual ao Cartola (ex: 521,30)
+function fmtPts(n) {
+  if (n == null || isNaN(n)) return '—';
+  return n.toFixed(2).replace('.', ',');
+}
+  if (v == null) return null;
+  if (typeof v === 'number') return v;
+  const s = String(v).replace(',', '.');
+  const n = parseFloat(s);
+  return isNaN(n) ? null : n;
+}
+
 function extrairPontos(data) {
-  // /time/id/{id}/{rodada} retorna { pontos, time, atletas, ... }
-  // pontos = pontuação daquela rodada específica
   const v = data?.pontos ?? data?.pontuacao ?? data?.pontos_num ?? data?.total_pontos ?? null;
-  return v != null ? parseFloat(v) : null;
+  return toNum(v);
 }
 
 async function initApp() {
@@ -429,7 +439,12 @@ async function initApp() {
 
   try {
     mercado = await apiFetch('/mercado/status');
-    rodadaAtual = mercado.rodada_atual || 1;
+    // status_mercado: 1=aberto, 2=fechado/rodada em andamento, 3=manutenção, 6=encerrado
+    // quando mercado está ABERTO (1), a rodada atual ainda não começou
+    // então a última rodada com pontuação é rodada_atual - 1
+    const rm = mercado.rodada_atual || 1;
+    const status = mercado.status_mercado;
+    rodadaAtual = (status === 1 && rm > 1) ? rm - 1 : rm;
   } catch(e) { rodadaAtual = 1; }
 
   rodadaVisu = rodadaAtual;
@@ -460,7 +475,7 @@ async function carregarTodosOsDados() {
       const p = extrairPontos(data);
       if (p != null) times[id].pts[rodadaAtual] = p;
       const total = data.pontos_campeonato ?? null;
-      if (total != null) times[id].totalAcumulado = parseFloat(total);
+      if (total != null) times[id].totalAcumulado = toNum(total);
     } catch(e) {}
   }));
 
@@ -558,7 +573,7 @@ function pontosTime(id, tv) {
     total = t.totalAcumulado ?? 0;
   }
 
-  return { total, rodadas, ultima, media: rodadas ? (total / rodadas).toFixed(2) : '—' };
+  return { total, rodadas, ultima, media: rodadas ? (total / rodadas).toFixed(2).replace('.', ',') : '—' };
 }
 
 function renderClassificacao() {
@@ -580,8 +595,8 @@ function renderClassificacao() {
     return `<tr>
       <td class="num">${badge}</td>
       <td><div class="team-cell">${av}<div><div class="team-name">${esc(d.nome)}</div><div class="team-owner">${esc(d.dono)}</div></div></div></td>
-      <td class="num"><span class="pts">${d.total.toFixed(2)}</span></td>
-      <td class="num"><span class="pts-rodada">${d.ultima!=null?d.ultima.toFixed(2):'—'}</span></td>
+      <td class="num"><span class="pts">${fmtPts(d.total)}</span></td>
+      <td class="num"><span class="pts-rodada">${d.ultima != null ? fmtPts(d.ultima) : '—'}</span></td>
       <td class="num" style="color:var(--texto-dim)">${d.rodadas}</td>
       <td class="num" style="color:var(--texto-dim)">${d.media}</td>
     </tr>`;
@@ -615,7 +630,7 @@ function renderRodada() {
 
   document.getElementById('rodada-grid').innerHTML=dados.map((d,i)=>{
     const av=d.foto?`<img class="team-avatar" src="${d.foto}" style="width:40px;height:40px" onerror="this.style.display='none'" />`:`<div class="team-avatar" style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:18px">⚽</div>`;
-    const pts=d.pts!=null?`<span class="card-pts">${d.pts.toFixed(2)}</span>`:`<span class="card-pts dim">Aguardando…</span>`;
+    const pts=d.pts!=null?`<span class="card-pts">${fmtPts(d.pts)}</span>`:`<span class="card-pts dim">Aguardando…</span>`;
     const pos=i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}º`;
     return `<div class="time-card">
       <div class="time-card-header">${av}<div><div class="team-name" style="font-size:13px">${esc(d.nome)}</div><div class="team-owner">${esc(d.dono)}</div></div></div>
@@ -654,13 +669,13 @@ function renderHistorico() {
     const av=t.foto?`<img class="team-avatar" src="${t.foto}" style="width:28px;height:28px" onerror="this.style.display='none'" />`:`<span>⚽</span>`;
     const cells=rShow.map(r=>{
       const idx=rodadas.indexOf(r),p=t.pts[idx];
-      return `<div class="cell pts-val">${p!=null?p.toFixed(1):'—'}</div>`;
+      return `<div class="cell pts-val">${p!=null?fmtPts(p):'—'}</div>`;
     }).join('');
     return `<div class="historico-row" style="grid-template-columns:${cols}">
       <div class="cell" style="color:var(--texto-dim);font-weight:700">${i+1}</div>
       <div class="team-cell" style="gap:8px">${av}<span style="font-weight:600;font-size:12px">${esc(t.nome)}</span></div>
       ${cells}
-      <div class="cell pts-val" style="font-size:18px">${t.total.toFixed(1)}</div>
+      <div class="cell pts-val" style="font-size:18px">${fmtPts(t.total)}</div>
     </div>`;
   }).join('');
 
