@@ -305,9 +305,11 @@
 
 <script>
 const DEFAULT_IDS = [698657,5600270,47659601,4595756,6502610,11667690,17902624,44843587,6041390,2022786,14176921,4292213,13932513,13219253,8243749,3297653,5726199,1503663,3768883,4363777,24503273,26513136];
-const API = 'https://api.cartolafc.globo.com';
 
-// Proxies CORS em ordem de prioridade
+// A API real do Cartola usa api.cartola.globo.com (sem "fc")
+const API  = 'https://api.cartola.globo.com';
+const API2 = 'https://api.cartolafc.globo.com'; // fallback
+
 const PROXIES = [
   u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
   u => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,
@@ -318,6 +320,7 @@ const PROXIES = [
 let proxyIdx = 0;
 
 let cfg = loadCfg();
+// times[id] = { info, pts: { rodada: pontos }, totalAcumulado: number|null }
 let times = {}, mercado = null, rodadaAtual = 1, rodadaVisu = 1, turnoView = 'geral';
 
 function loadCfg() {
@@ -326,22 +329,25 @@ function loadCfg() {
 }
 function saveCfg() { localStorage.setItem('liga_cfg', JSON.stringify(cfg)); }
 
+// Tenta todos os proxies com os dois domínios da API
 async function apiFetch(path) {
-  const full = API + path;
-  for (let i=0; i<PROXIES.length; i++) {
-    const idx = (proxyIdx+i) % PROXIES.length;
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(()=>controller.abort(), 12000);
-      const r = await fetch(PROXIES[idx](full), {signal:controller.signal});
-      clearTimeout(timer);
-      if (!r.ok) { console.warn(`Proxy ${idx} retornou ${r.status}`); continue; }
-      const text = await r.text();
-      if (!text || text.trim().startsWith('<')) { console.warn(`Proxy ${idx} retornou HTML`); continue; }
-      const data = JSON.parse(text);
-      proxyIdx = idx;
-      return data;
-    } catch(e) { console.warn(`Proxy ${idx} falhou:`, e.message); }
+  const urls = [API + path, API2 + path];
+  for (const full of urls) {
+    for (let i = 0; i < PROXIES.length; i++) {
+      const idx = (proxyIdx + i) % PROXIES.length;
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 12000);
+        const r = await fetch(PROXIES[idx](full), { signal: controller.signal });
+        clearTimeout(timer);
+        if (!r.ok) continue;
+        const text = await r.text();
+        if (!text || text.trim()[0] === '<') continue;
+        const data = JSON.parse(text);
+        proxyIdx = idx;
+        return data;
+      } catch(e) { /* tenta próximo */ }
+    }
   }
   throw new Error('Todos os proxies falharam');
 }
@@ -351,57 +357,76 @@ function setStatus(type, text) {
   document.getElementById('status-text').textContent = text;
 }
 
+// Extrai pontos de rodada de qualquer formato que a API retornar
+function extrairPontos(data) {
+  // /time/id/{id}/{rodada} retorna { pontos, time, atletas, ... }
+  // pontos = pontuação daquela rodada específica
+  const v = data?.pontos ?? data?.pontuacao ?? data?.pontos_num ?? data?.total_pontos ?? null;
+  return v != null ? parseFloat(v) : null;
+}
+
 async function initApp() {
-  setStatus('loading','Conectando…');
+  setStatus('loading', 'Conectando…');
   document.getElementById('btn-refresh').disabled = true;
   fillConfigUI();
+
   try {
     mercado = await apiFetch('/mercado/status');
     rodadaAtual = mercado.rodada_atual || 1;
   } catch(e) { rodadaAtual = 1; }
+
   rodadaVisu = rodadaAtual;
   document.getElementById('rodada-label').textContent = `Rodada ${rodadaVisu}`;
   updateNavBtns();
-  await loadAllTimes();
+
+  setStatus('loading', `Carregando ${cfg.ids.length} times…`);
+  await carregarTodosOsDados();
+
   renderClassificacao();
   renderRodada();
-  const ok = Object.values(times).some(t=>t.info);
-  setStatus(ok?'live':'error', ok?(mercado?.status_mercado===1?'Mercado Aberto':`Rodada ${rodadaAtual}`):'Sem conexão');
+
+  const ok = Object.values(times).some(t => t.info);
+  const statusMercado = mercado?.status_mercado === 1 ? 'Mercado Aberto' : `Rodada ${rodadaAtual}`;
+  setStatus(ok ? 'live' : 'error', ok ? statusMercado : 'Sem conexão');
   document.getElementById('btn-refresh').disabled = false;
 }
 
-async function loadAllTimes() {
+// Estratégia principal:
+// 1. Busca /time/id/{id} → info do time + pontos rodada atual
+// 2. Para cada rodada passada, busca /time/id/{id}/{rodada} → pontos históricos
+// Isso é exatamente o que o Parciais CFC faz
+async function carregarTodosOsDados() {
+  // Passo 1: info atual de todos os times em paralelo
   await Promise.allSettled(cfg.ids.map(async id => {
     try {
       const data = await apiFetch(`/time/id/${id}`);
-      if (!times[id]) times[id]={pts:{},totalApi:null};
+      if (!times[id]) times[id] = { info: null, pts: {}, totalAcumulado: null };
       times[id].info = data;
 
-      // DEBUG: loga todos os campos numéricos para identificar o correto
-      const nome = data.time?.nome || id;
-      const campos = {};
-      for (const k in data) { if (typeof data[k]==='number') campos[k]=data[k]; }
-      console.log(`[${nome}] campos numéricos:`, campos);
+      // pontos da rodada atual
+      const p = extrairPontos(data);
+      if (p != null) times[id].pts[rodadaAtual] = p;
 
-      // pontos da rodada atual (campo mais comum = pontos)
-      const ptRodada = data.pontos ?? data.pontuacao ?? null;
-      if (ptRodada != null) times[id].pts[rodadaAtual] = parseFloat(ptRodada);
+      // total acumulado (pontos_campeonato é o campo oficial do Cartola)
+      const total = data.pontos_campeonato ?? null;
+      if (total != null) times[id].totalAcumulado = parseFloat(total);
 
-      // total acumulado do campeonato (usado no modo Geral)
-      const total = data.pontos_campeonato ?? data.pontos_num ?? data.total_pontos ?? null;
-      console.log(`[${nome}] total campeonato:`, total, '| pts rodada:', ptRodada);
-      if (total != null) times[id].totalApi = parseFloat(total);
-
-    } catch(e){ console.warn('loadTime erro', id, e); }
+    } catch(e) { console.warn(`Time ${id}:`, e.message); }
   }));
 
-  // Carrega rodadas passadas em paralelo por lote para ser mais rápido
+  // Passo 2: histórico rodada a rodada (em lotes para não sobrecarregar)
   if (rodadaAtual > 1) {
-    const rodadas = Array.from({length: rodadaAtual - 1}, (_, i) => i + 1);
-    // processa em lotes de 3 rodadas para não sobrecarregar o proxy
-    for (let i = 0; i < rodadas.length; i += 3) {
-      const lote = rodadas.slice(i, i + 3);
-      await Promise.allSettled(lote.map(r => loadRodadaHistorica(r)));
+    for (let r = 1; r < rodadaAtual; r++) {
+      await Promise.allSettled(cfg.ids.map(async id => {
+        if (times[id]?.pts[r] != null) return; // já temos, pula
+        try {
+          const data = await apiFetch(`/time/id/${id}/${r}`);
+          if (!times[id]) times[id] = { info: null, pts: {}, totalAcumulado: null };
+          if (!times[id].info) times[id].info = data;
+          const p = extrairPontos(data);
+          if (p != null) times[id].pts[r] = p;
+        } catch(e) {}
+      }));
     }
   }
 }
@@ -411,25 +436,16 @@ async function loadRodadaHistorica(r) {
     if (times[id]?.pts[r] != null) return;
     try {
       const data = await apiFetch(`/time/id/${id}/${r}`);
-      if (!times[id]) times[id]={pts:{},totalApi:null};
+      if (!times[id]) times[id] = { info: null, pts: {}, totalAcumulado: null };
       if (!times[id].info) times[id].info = data;
-
-      // DEBUG rodada histórica
-      const nome = data.time?.nome || id;
-      const campos = {};
-      for (const k in data) { if (typeof data[k]==='number') campos[k]=data[k]; }
-      if (r === 1) console.log(`[R${r}][${nome}] campos:`, campos);
-
-      const p = data.pontos ?? data.pontuacao ?? data.pontos_num ?? null;
-      if (p != null) times[id].pts[r] = parseFloat(p);
-      else console.warn(`[R${r}][${nome}] SEM pontos! campos:`, campos);
-
-    } catch(e){}
+      const p = extrairPontos(data);
+      if (p != null) times[id].pts[r] = p;
+    } catch(e) {}
   }));
 }
 
 async function refreshAll() {
-  times={};
+  times = {};
   await initApp();
 }
 
@@ -462,24 +478,24 @@ function pontosTime(id, tv) {
   const {ini, fim} = faixa(tv);
   let total = 0, rodadas = 0, ultima = null;
 
-  // conta rodadas e última pontuação (sempre por rodada)
+  // conta rodadas disputadas e última pontuação
   for (let r = ini; r <= Math.min(fim, rodadaAtual); r++) {
     const p = t.pts[r];
-    if (p != null) { rodadas++; ultima = p; if (tv !== 'geral') total += p; }
+    if (p != null) { rodadas++; ultima = p; }
   }
 
-  // no Geral: usa o total direto da API se disponível (valor exato do Cartola)
-  if (tv === 'geral') {
-    total = t.totalApi != null ? t.totalApi : (() => {
-      let s = 0;
-      for (let r = ini; r <= Math.min(fim, rodadaAtual); r++) {
-        const p = t.pts[r]; if (p != null) s += p;
-      }
-      return s;
-    })();
+  if (tv === 'geral' && t.totalAcumulado != null) {
+    // usa o campo pontos_campeonato direto da API — é exatamente o número do Cartola
+    total = t.totalAcumulado;
+  } else {
+    // soma manual por rodada (para turnos, ou se totalAcumulado não veio)
+    for (let r = ini; r <= Math.min(fim, rodadaAtual); r++) {
+      const p = t.pts[r];
+      if (p != null) total += p;
+    }
   }
 
-  return {total, rodadas, ultima, media: rodadas ? (total / rodadas).toFixed(1) : '—'};
+  return { total, rodadas, ultima, media: rodadas ? (total / rodadas).toFixed(1) : '—' };
 }
 
 function renderClassificacao() {
