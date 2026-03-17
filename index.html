@@ -472,7 +472,7 @@ function setTurnoView(v, el) {
 function faixa(tv) {
   if (tv === 'turno1') return {ini: cfg.t1ini, fim: cfg.t1fim};
   if (tv === 'turno2') return {ini: cfg.t2ini, fim: cfg.t2fim};
-  return {ini: 1, fim: rodadaAtual}; // geral = todas as rodadas jogadas
+  return {ini: 1, fim: rodadaAtual};
 }
 
 function pontosTime(id, tv) {
@@ -480,26 +480,27 @@ function pontosTime(id, tv) {
   if (!t) return {total:0, rodadas:0, ultima:null, media:'—'};
 
   const {ini, fim} = faixa(tv);
-  let total = 0, rodadas = 0, ultima = null;
+  let rodadas = 0, ultima = null;
 
-  // conta pontos rodada a rodada dentro da faixa
   for (let r = ini; r <= Math.min(fim, rodadaAtual); r++) {
     const p = t.pts[r];
-    if (p != null) { total += p; rodadas++; ultima = p; }
+    if (p != null) { rodadas++; ultima = p; }
   }
 
-  // se ainda não carregou o histórico completo mas temos totalAcumulado,
-  // usa ele (é o valor exato do Cartola — pontos_campeonato)
-  const rodadasEsperadas = Math.min(fim, rodadaAtual) - ini + 1;
-  if (rodadas < rodadasEsperadas && t.totalAcumulado != null) {
-    total = t.totalAcumulado;
-    // última rodada disponível
-    for (let r = Math.min(fim, rodadaAtual); r >= ini; r--) {
-      if (t.pts[r] != null) { ultima = t.pts[r]; rodadas = rodadaAtual - ini + 1; break; }
+  let total = 0;
+
+  if (tv === 'turno2' && rodadaAtual > cfg.t1fim) {
+    // 2º turno: soma apenas rodadas do período (histórico rodada a rodada)
+    for (let r = ini; r <= Math.min(fim, rodadaAtual); r++) {
+      const p = t.pts[r];
+      if (p != null) total += p;
     }
+  } else {
+    // 1º turno (ou enquanto estiver no 1º): usa pontos_campeonato exato do Cartola
+    total = t.totalAcumulado ?? 0;
   }
 
-  return { total, rodadas, ultima, media: rodadas ? (total / rodadas).toFixed(1) : '—' };
+  return { total, rodadas, ultima, media: rodadas ? (total / rodadas).toFixed(2) : '—' };
 }
 
 function renderClassificacao() {
