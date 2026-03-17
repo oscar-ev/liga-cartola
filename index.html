@@ -376,17 +376,32 @@ async function loadAllTimes() {
       const data = await apiFetch(`/time/id/${id}`);
       if (!times[id]) times[id]={pts:{},totalApi:null};
       times[id].info = data;
-      // pontos da rodada atual
-      if (data.pontos != null) times[id].pts[rodadaAtual] = data.pontos;
-      // total acumulado direto da API (campo mais confiável)
-      const totalBruto = data.pontos_campeonato ?? data.pontuacao ?? data.pontos_total ?? null;
-      if (totalBruto != null) times[id].totalApi = parseFloat(totalBruto);
-    } catch(e){}
+
+      // DEBUG: loga todos os campos numéricos para identificar o correto
+      const nome = data.time?.nome || id;
+      const campos = {};
+      for (const k in data) { if (typeof data[k]==='number') campos[k]=data[k]; }
+      console.log(`[${nome}] campos numéricos:`, campos);
+
+      // pontos da rodada atual (campo mais comum = pontos)
+      const ptRodada = data.pontos ?? data.pontuacao ?? null;
+      if (ptRodada != null) times[id].pts[rodadaAtual] = parseFloat(ptRodada);
+
+      // total acumulado do campeonato (usado no modo Geral)
+      const total = data.pontos_campeonato ?? data.pontos_num ?? data.total_pontos ?? null;
+      console.log(`[${nome}] total campeonato:`, total, '| pts rodada:', ptRodada);
+      if (total != null) times[id].totalApi = parseFloat(total);
+
+    } catch(e){ console.warn('loadTime erro', id, e); }
   }));
-  // Carrega rodadas passadas para garantir histórico completo
+
+  // Carrega rodadas passadas em paralelo por lote para ser mais rápido
   if (rodadaAtual > 1) {
-    for (let r = 1; r < rodadaAtual; r++) {
-      await loadRodadaHistorica(r);
+    const rodadas = Array.from({length: rodadaAtual - 1}, (_, i) => i + 1);
+    // processa em lotes de 3 rodadas para não sobrecarregar o proxy
+    for (let i = 0; i < rodadas.length; i += 3) {
+      const lote = rodadas.slice(i, i + 3);
+      await Promise.allSettled(lote.map(r => loadRodadaHistorica(r)));
     }
   }
 }
@@ -398,9 +413,17 @@ async function loadRodadaHistorica(r) {
       const data = await apiFetch(`/time/id/${id}/${r}`);
       if (!times[id]) times[id]={pts:{},totalApi:null};
       if (!times[id].info) times[id].info = data;
-      // tenta vários campos de pontuação por rodada
+
+      // DEBUG rodada histórica
+      const nome = data.time?.nome || id;
+      const campos = {};
+      for (const k in data) { if (typeof data[k]==='number') campos[k]=data[k]; }
+      if (r === 1) console.log(`[R${r}][${nome}] campos:`, campos);
+
       const p = data.pontos ?? data.pontuacao ?? data.pontos_num ?? null;
       if (p != null) times[id].pts[r] = parseFloat(p);
+      else console.warn(`[R${r}][${nome}] SEM pontos! campos:`, campos);
+
     } catch(e){}
   }));
 }
@@ -439,9 +462,21 @@ function pontosTime(id, tv) {
   const {ini, fim} = faixa(tv);
   let total = 0, rodadas = 0, ultima = null;
 
+  // conta rodadas e última pontuação (sempre por rodada)
   for (let r = ini; r <= Math.min(fim, rodadaAtual); r++) {
     const p = t.pts[r];
-    if (p != null) { total += p; rodadas++; ultima = p; }
+    if (p != null) { rodadas++; ultima = p; if (tv !== 'geral') total += p; }
+  }
+
+  // no Geral: usa o total direto da API se disponível (valor exato do Cartola)
+  if (tv === 'geral') {
+    total = t.totalApi != null ? t.totalApi : (() => {
+      let s = 0;
+      for (let r = ini; r <= Math.min(fim, rodadaAtual); r++) {
+        const p = t.pts[r]; if (p != null) s += p;
+      }
+      return s;
+    })();
   }
 
   return {total, rodadas, ultima, media: rodadas ? (total / rodadas).toFixed(1) : '—'};
