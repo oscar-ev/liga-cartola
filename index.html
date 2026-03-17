@@ -129,6 +129,44 @@
   .btn-logout { background:none; border:1px solid var(--borda); color:var(--texto-dim); border-radius:8px; padding:6px 14px; font-size:12px; cursor:pointer; transition:all .2s; }
   .btn-logout:hover { border-color:var(--vermelho); color:var(--vermelho); }
 
+  /* ── MODAL PERFIL TIME ── */
+  .modal-time { max-width:520px; padding:0; overflow:hidden; }
+  .modal-time-header {
+    background: linear-gradient(135deg, #0d2618, #0a1a10);
+    border-bottom: 1px solid var(--borda);
+    padding: 24px 24px 20px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .modal-time-foto { width:64px; height:64px; border-radius:50%; border:3px solid var(--verde); object-fit:cover; background:var(--preto-card2); flex-shrink:0; }
+  .modal-time-info { flex:1; }
+  .modal-time-nome { font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:1.5px; color:var(--verde); }
+  .modal-time-dono { font-size:12px; color:var(--texto-dim); margin-top:2px; }
+  .modal-time-total { font-family:'Bebas Neue',sans-serif; font-size:28px; letter-spacing:1px; color:var(--ouro); }
+  .modal-time-total-label { font-size:10px; color:var(--texto-dim); text-transform:uppercase; letter-spacing:.5px; }
+  .modal-time-body { padding:20px 24px; }
+  .modal-close { position:absolute; top:16px; right:16px; background:none; border:none; color:var(--texto-dim); font-size:22px; cursor:pointer; width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:8px; transition:all .2s; }
+  .modal-close:hover { background:var(--borda); color:var(--texto); }
+
+  /* Gráfico de barras rodadas */
+  .rodadas-hist { display:flex; flex-direction:column; gap:8px; }
+  .rod-item { display:grid; grid-template-columns:32px 1fr 60px; align-items:center; gap:10px; }
+  .rod-label { font-size:11px; font-weight:700; color:var(--texto-dim); text-align:right; }
+  .rod-bar-wrap { background:var(--preto-card2); border-radius:4px; height:22px; overflow:hidden; }
+  .rod-bar { height:100%; border-radius:4px; background:var(--verde); transition:width .5s ease; display:flex; align-items:center; padding-left:8px; min-width:4px; }
+  .rod-pts { font-size:12px; font-weight:700; color:var(--texto); text-align:right; }
+  .rod-pts.melhor { color:var(--ouro); }
+  .rod-pts.pior { color:var(--vermelho); }
+
+  /* Stats */
+  .modal-stats { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:20px; }
+  .stat-box { background:var(--preto-card2); border:1px solid var(--borda); border-radius:10px; padding:12px; text-align:center; }
+  .stat-val { font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:1px; color:var(--verde); }
+  .stat-lbl { font-size:10px; color:var(--texto-dim); text-transform:uppercase; letter-spacing:.5px; margin-top:2px; }
+
+  /* cursor pointer nas linhas da tabela */
+  tbody tr.clickable { cursor:pointer; }
+  tbody tr.clickable:hover { background:rgba(0,200,83,.07); }
+
   @media(max-width:640px) {
     /* Header */
     header { padding:0 12px; height:56px; }
@@ -354,6 +392,33 @@
     <div class="modal-btn-row">
       <button class="btn-cancel" onclick="fecharModalSenha()">Cancelar</button>
       <button class="btn-entrar" onclick="confirmarSenha()">Entrar →</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal perfil do time -->
+<div class="modal-overlay" id="modal-time" style="align-items:center;padding:16px">
+  <div class="modal-box modal-time" style="position:relative">
+    <button class="modal-close" onclick="fecharModalTime()">✕</button>
+    <div class="modal-time-header">
+      <img id="mt-foto" class="modal-time-foto" src="" onerror="this.style.display='none'" />
+      <div class="modal-time-info">
+        <div class="modal-time-nome" id="mt-nome">—</div>
+        <div class="modal-time-dono" id="mt-dono">—</div>
+      </div>
+      <div style="text-align:right">
+        <div class="modal-time-total" id="mt-total">—</div>
+        <div class="modal-time-total-label">Pts Total</div>
+      </div>
+    </div>
+    <div class="modal-time-body">
+      <div class="modal-stats">
+        <div class="stat-box"><div class="stat-val" id="mt-rodadas">—</div><div class="stat-lbl">Rodadas</div></div>
+        <div class="stat-box"><div class="stat-val" id="mt-media">—</div><div class="stat-lbl">Média</div></div>
+        <div class="stat-box"><div class="stat-val" id="mt-pos">—</div><div class="stat-lbl">Posição</div></div>
+      </div>
+      <div id="mt-barras" class="rodadas-hist"></div>
+      <div id="mt-loading" style="text-align:center;padding:20px;color:var(--texto-dim);font-size:13px;display:none">⏳ Carregando rodadas…</div>
     </div>
   </div>
 </div>
@@ -591,7 +656,7 @@ function renderClassificacao() {
     const p=i+1;
     const badge=p<=3?`<span class="pos-badge pos-${p}">${p}</span>`:`<span class="pos-badge pos-other">${p}</span>`;
     const av=d.foto?`<img class="team-avatar" src="${d.foto}" onerror="this.style.display='none'" />`:`<div class="team-avatar" style="display:flex;align-items:center;justify-content:center;font-size:18px">⚽</div>`;
-    return `<tr>
+    return `<tr class="clickable" onclick="abrirModalTime(${d.id}, ${p})" title="Ver histórico de ${esc(d.nome)}">
       <td class="num">${badge}</td>
       <td><div class="team-cell">${av}<div><div class="team-name">${esc(d.nome)}</div><div class="team-owner">${esc(d.dono)}</div></div></div></td>
       <td class="num"><span class="pts">${fmtPts(d.total)}</span></td>
@@ -810,6 +875,104 @@ async function alterarSenha() {
 document.getElementById('modal-admin').addEventListener('click', function(e){
   if(e.target===this) fecharModalSenha();
 });
+document.getElementById('modal-time').addEventListener('click', function(e){
+  if(e.target===this) fecharModalTime();
+});
+
+// ── MODAL PERFIL DO TIME ─────────────────────────
+function fecharModalTime() {
+  document.getElementById('modal-time').classList.remove('show');
+}
+
+async function abrirModalTime(id, posicao) {
+  const t = times[id];
+  if (!t) return;
+  const info = t.info;
+  const nome = info?.time?.nome || `Time #${id}`;
+  const dono = info?.time?.nome_cartola || '—';
+  const foto = info?.time?.foto_perfil || '';
+
+  // preenche header
+  const fotoEl = document.getElementById('mt-foto');
+  fotoEl.src = foto;
+  fotoEl.style.display = foto ? 'block' : 'none';
+  document.getElementById('mt-nome').textContent = nome;
+  document.getElementById('mt-dono').textContent = dono;
+  document.getElementById('mt-pos').textContent = `${posicao}º`;
+
+  const { total, rodadas, media } = pontosTime(id, turnoView);
+  document.getElementById('mt-total').textContent = fmtPts(total);
+  document.getElementById('mt-rodadas').textContent = rodadas;
+  document.getElementById('mt-media').textContent = media;
+
+  // mostra modal
+  document.getElementById('modal-time').classList.add('show');
+  document.getElementById('mt-barras').innerHTML = '';
+  document.getElementById('mt-loading').style.display = 'block';
+
+  // carrega histórico se não tiver
+  if (rodadaAtual > 1) {
+    await loadRodadaHistorica_time(id);
+  }
+
+  renderBarrasTime(id);
+}
+
+async function loadRodadaHistorica_time(id) {
+  const faltam = [];
+  for (let r = 1; r <= rodadaAtual; r++) {
+    if (times[id]?.pts[r] == null) faltam.push(r);
+  }
+  if (faltam.length === 0) return;
+
+  await Promise.allSettled(faltam.map(async r => {
+    try {
+      const data = await apiFetch(`/time/id/${id}/${r}`);
+      if (!times[id]) times[id] = { info: null, pts: {}, totalAcumulado: null };
+      const p = extrairPontos(data);
+      if (p != null && r <= rodadaAtual) times[id].pts[r] = p;
+    } catch(e) {}
+  }));
+}
+
+function renderBarrasTime(id) {
+  document.getElementById('mt-loading').style.display = 'none';
+  const t = times[id];
+  if (!t) return;
+
+  const pts = [];
+  for (let r = 1; r <= rodadaAtual; r++) {
+    pts.push({ r, p: t.pts[r] ?? null });
+  }
+
+  const validos = pts.filter(x => x.p != null).map(x => x.p);
+  const maxPts = validos.length ? Math.max(...validos) : 100;
+  const minPts = validos.length ? Math.min(...validos) : 0;
+
+  const html = pts.map(({ r, p }) => {
+    if (p == null) return `
+      <div class="rod-item">
+        <div class="rod-label">R${r}</div>
+        <div class="rod-bar-wrap"><div class="rod-bar" style="width:2%;background:var(--borda)"></div></div>
+        <div class="rod-pts" style="color:var(--texto-dim)">—</div>
+      </div>`;
+
+    const pct = maxPts > 0 ? Math.max(4, (p / maxPts) * 100) : 4;
+    const cor = p === maxPts ? 'var(--ouro)' : p === minPts && validos.length > 1 ? 'var(--vermelho)' : 'var(--verde)';
+    const cls = p === maxPts ? 'melhor' : p === minPts && validos.length > 1 ? 'pior' : '';
+
+    return `
+      <div class="rod-item">
+        <div class="rod-label">R${r}</div>
+        <div class="rod-bar-wrap">
+          <div class="rod-bar" style="width:${pct}%;background:${cor}"></div>
+        </div>
+        <div class="rod-pts ${cls}">${fmtPts(p)}</div>
+      </div>`;
+  }).join('');
+
+  document.getElementById('mt-barras').innerHTML = html;
+}
 
 initApp();
 </script>
