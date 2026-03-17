@@ -165,10 +165,9 @@
 <main>
   <div id="tab-classificacao" class="tab-content active">
     <div class="rodada-bar">
-      <h2 id="classif-titulo">Classificação Geral</h2>
+      <h2 id="classif-titulo">1º Turno</h2>
       <div class="turno-tabs">
-        <button class="turno-btn active" onclick="setTurnoView('geral',this)">Geral</button>
-        <button class="turno-btn" onclick="setTurnoView('turno1',this)">1º Turno</button>
+        <button class="turno-btn active" onclick="setTurnoView('turno1',this)">1º Turno</button>
         <button class="turno-btn" onclick="setTurnoView('turno2',this)">2º Turno</button>
       </div>
     </div>
@@ -321,7 +320,7 @@ let proxyIdx = 0;
 
 let cfg = loadCfg();
 // times[id] = { info, pts: { rodada: pontos }, totalAcumulado: number|null }
-let times = {}, mercado = null, rodadaAtual = 1, rodadaVisu = 1, turnoView = 'geral';
+let times = {}, mercado = null, rodadaAtual = 1, rodadaVisu = 1, turnoView = 'turno1';
 
 function loadCfg() {
   try { const s=localStorage.getItem('liga_cfg'); if(s) return JSON.parse(s); } catch(e){}
@@ -403,22 +402,22 @@ async function carregarTodosOsDados() {
       if (!times[id]) times[id] = { info: null, pts: {}, totalAcumulado: null };
       times[id].info = data;
 
-      // pontos da rodada atual
       const p = extrairPontos(data);
       if (p != null) times[id].pts[rodadaAtual] = p;
 
-      // total acumulado (pontos_campeonato é o campo oficial do Cartola)
+      // pontos_campeonato = total acumulado oficial do Cartola
       const total = data.pontos_campeonato ?? null;
       if (total != null) times[id].totalAcumulado = parseFloat(total);
 
     } catch(e) { console.warn(`Time ${id}:`, e.message); }
   }));
 
-  // Passo 2: histórico rodada a rodada (em lotes para não sobrecarregar)
+  // Passo 2: histórico rodada a rodada
   if (rodadaAtual > 1) {
     for (let r = 1; r < rodadaAtual; r++) {
+      setStatus('loading', `Carregando histórico R${r}/${rodadaAtual - 1}…`);
       await Promise.allSettled(cfg.ids.map(async id => {
-        if (times[id]?.pts[r] != null) return; // já temos, pula
+        if (times[id]?.pts[r] != null) return;
         try {
           const data = await apiFetch(`/time/id/${id}/${r}`);
           if (!times[id]) times[id] = { info: null, pts: {}, totalAcumulado: null };
@@ -458,10 +457,10 @@ function showTab(name, el) {
 }
 
 function setTurnoView(v, el) {
-  turnoView=v;
-  document.querySelectorAll('.turno-btn').forEach(b=>b.classList.remove('active'));
+  turnoView = v;
+  document.querySelectorAll('.turno-btn').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
-  document.getElementById('classif-titulo').textContent = {geral:'Classificação Geral',turno1:'1º Turno',turno2:'2º Turno'}[v];
+  document.getElementById('classif-titulo').textContent = {turno1:'1º Turno', turno2:'2º Turno'}[v];
   renderClassificacao();
 }
 
@@ -478,21 +477,18 @@ function pontosTime(id, tv) {
   const {ini, fim} = faixa(tv);
   let total = 0, rodadas = 0, ultima = null;
 
-  // conta rodadas disputadas e última pontuação
+  // sempre soma rodada por rodada dentro da faixa do turno
   for (let r = ini; r <= Math.min(fim, rodadaAtual); r++) {
     const p = t.pts[r];
-    if (p != null) { rodadas++; ultima = p; }
+    if (p != null) { total += p; rodadas++; ultima = p; }
   }
 
-  if (tv === 'geral' && t.totalAcumulado != null) {
-    // usa o campo pontos_campeonato direto da API — é exatamente o número do Cartola
+  // se não temos nenhuma rodada histórica mas temos o total da API
+  // e estamos no turno1 ainda (rodadaAtual dentro da faixa), usa totalAcumulado
+  if (rodadas === 0 && t.totalAcumulado != null && rodadaAtual >= ini && rodadaAtual <= fim) {
     total = t.totalAcumulado;
-  } else {
-    // soma manual por rodada (para turnos, ou se totalAcumulado não veio)
-    for (let r = ini; r <= Math.min(fim, rodadaAtual); r++) {
-      const p = t.pts[r];
-      if (p != null) total += p;
-    }
+    rodadas = 1;
+    ultima = t.pts[rodadaAtual] ?? null;
   }
 
   return { total, rodadas, ultima, media: rodadas ? (total / rodadas).toFixed(1) : '—' };
