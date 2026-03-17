@@ -523,6 +523,75 @@ async function initApp() {
     ? (mercado?.status_mercado === 1 ? 'Mercado Aberto' : `Rodada ${rodadaAtual}`)
     : 'Sem conexão');
   document.getElementById('btn-refresh').disabled = false;
+
+  // inicia monitoramento automático
+  iniciarAutoRefresh();
+}
+
+// ── AUTO-REFRESH INTELIGENTE ─────────────────────
+// Durante rodada em andamento (status 2): atualiza a cada 3 min
+// Mercado aberto (status 1 = entre rodadas): verifica a cada 15 min se nova rodada começou
+let autoRefreshTimer = null;
+
+function iniciarAutoRefresh() {
+  if (autoRefreshTimer) clearTimeout(autoRefreshTimer);
+  const status = mercado?.status_mercado;
+  
+  if (status === 2) {
+    // Rodada em andamento → atualiza pontuações a cada 3 minutos
+    agendarProximoRefresh(3 * 60 * 1000, '🔴 Ao vivo');
+  } else if (status === 1) {
+    // Mercado aberto (entre rodadas) → verifica a cada 15 min se nova rodada começou
+    agendarProximoRefresh(15 * 60 * 1000, '⏳ Aguardando rodada');
+  } else {
+    // Outros estados → verifica a cada 10 min
+    agendarProximoRefresh(10 * 60 * 1000, `Rodada ${rodadaAtual}`);
+  }
+}
+
+function agendarProximoRefresh(intervalo, statusLabel) {
+  // mostra contador regressivo no status
+  let restante = intervalo / 1000;
+  const tick = setInterval(() => {
+    restante--;
+    const min = String(Math.floor(restante / 60)).padStart(2, '0');
+    const seg = String(restante % 60).padStart(2, '0');
+    setStatus('live', `${statusLabel} · próx. ${min}:${seg}`);
+    if (restante <= 0) clearInterval(tick);
+  }, 1000);
+
+  autoRefreshTimer = setTimeout(async () => {
+    clearInterval(tick);
+    setStatus('loading', 'Atualizando…');
+    
+    // verifica se status do mercado mudou (nova rodada?)
+    try {
+      const novoMercado = await apiFetch('/mercado/status');
+      const novoRm = novoMercado.rodada_atual || 1;
+      const novoStatus = novoMercado.status_mercado;
+      const novaRodada = (novoStatus === 1 && novoRm > 1) ? novoRm - 1 : novoRm;
+
+      if (novaRodada !== rodadaAtual) {
+        // nova rodada concluída! recarrega tudo
+        toast(`🎉 Rodada ${novaRodada} concluída! Atualizando…`);
+        times = {};
+        await initApp();
+      } else {
+        // mesma rodada, só atualiza pontuações
+        mercado = novoMercado;
+        await carregarTodosOsDados();
+        renderClassificacao();
+        renderRodada();
+        const s = novoStatus === 1 ? 'Mercado Aberto' : `Rodada ${rodadaAtual}`;
+        setStatus('live', s);
+        iniciarAutoRefresh();
+      }
+    } catch(e) {
+      setStatus('error', 'Sem conexão');
+      // tenta novamente em 2 min se falhar
+      agendarProximoRefresh(2 * 60 * 1000, '⚠️ Reconectando');
+    }
+  }, intervalo);
 }
 
 // Estratégia principal:
@@ -586,6 +655,7 @@ async function loadRodadaHistorica(r) {
 }
 
 async function refreshAll() {
+  if (autoRefreshTimer) { clearTimeout(autoRefreshTimer); autoRefreshTimer = null; }
   times = {};
   await initApp();
 }
