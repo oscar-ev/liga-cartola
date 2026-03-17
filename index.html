@@ -394,7 +394,7 @@ async function apiFetch(path) {
       const idx = (proxyIdx + i) % PROXIES.length;
       try {
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 12000);
+        const timer = setTimeout(() => controller.abort(), 6000);
         const r = await fetch(PROXIES[idx](full), { signal: controller.signal });
         clearTimeout(timer);
         if (!r.ok) continue;
@@ -414,16 +414,15 @@ function setStatus(type, text) {
   document.getElementById('status-text').textContent = text;
 }
 
-// Extrai pontos de rodada de qualquer formato que a API retornar
-// Formata número com vírgula igual ao Cartola (ex: 521,30)
 function fmtPts(n) {
   if (n == null || isNaN(n)) return '—';
   return n.toFixed(2).replace('.', ',');
 }
+
+function toNum(v) {
   if (v == null) return null;
   if (typeof v === 'number') return v;
-  const s = String(v).replace(',', '.');
-  const n = parseFloat(s);
+  const n = parseFloat(String(v).replace(',', '.'));
   return isNaN(n) ? null : n;
 }
 
@@ -451,13 +450,13 @@ async function initApp() {
   document.getElementById('rodada-label').textContent = `Rodada ${rodadaVisu}`;
   updateNavBtns();
 
-  setStatus('loading', `Buscando times…`);
+  setStatus('loading', 'Buscando times…');
   await carregarTodosOsDados();
 
-  // classificação e rodada já foram renderizados dentro de carregarTodosOsDados
   const ok = Object.values(times).some(t => t.info);
-  if (ok) setStatus('loading', 'Carregando histórico…');
-  else setStatus('error', 'Sem conexão');
+  setStatus(ok ? 'live' : 'error', ok
+    ? (mercado?.status_mercado === 1 ? 'Mercado Aberto' : `Rodada ${rodadaAtual}`)
+    : 'Sem conexão');
   document.getElementById('btn-refresh').disabled = false;
 }
 
@@ -483,14 +482,10 @@ async function carregarTodosOsDados() {
     } catch(e) {}
   }));
 
-  // Renderiza imediatamente com totalAcumulado (igual ao Geral que funcionava)
+  // Renderiza imediatamente com totalAcumulado
   renderClassificacao();
   renderRodada();
-
-  // Passo 2: carrega histórico em background sem bloquear a tela
-  if (rodadaAtual > 1) {
-    carregarHistoricoBackground();
-  }
+  // histórico só carrega quando o usuário clicar na aba
 }
 
 async function carregarHistoricoBackground() {
