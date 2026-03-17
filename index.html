@@ -427,9 +427,9 @@ function setTurnoView(v, el) {
 }
 
 function faixa(tv) {
-  if (tv==='turno1') return {ini:cfg.t1ini, fim:cfg.t1fim};
-  if (tv==='turno2') return {ini:cfg.t2ini, fim:cfg.t2fim};
-  return {ini:1, fim:rodadaAtual};
+  if (tv === 'turno1') return {ini: cfg.t1ini, fim: cfg.t1fim};
+  if (tv === 'turno2') return {ini: cfg.t2ini, fim: cfg.t2fim};
+  return {ini: 1, fim: rodadaAtual}; // geral = todas as rodadas jogadas
 }
 
 function pontosTime(id, tv) {
@@ -439,26 +439,12 @@ function pontosTime(id, tv) {
   const {ini, fim} = faixa(tv);
   let total = 0, rodadas = 0, ultima = null;
 
-  if (tv === 'geral' && t.totalApi != null) {
-    // usa o total acumulado diretamente da API (mais preciso)
-    total = t.totalApi;
-    // conta rodadas e pega última disponível
-    for (let r = ini; r <= Math.min(fim, rodadaAtual); r++) {
-      const p = t.pts[r];
-      if (p != null) { rodadas++; ultima = p; }
-    }
-  } else {
-    // soma manual por rodada (para turnos ou quando total da API não disponível)
-    for (let r = ini; r <= Math.min(fim, rodadaAtual); r++) {
-      const p = t.pts[r];
-      if (p != null) { total += p; rodadas++; ultima = p; }
-    }
+  for (let r = ini; r <= Math.min(fim, rodadaAtual); r++) {
+    const p = t.pts[r];
+    if (p != null) { total += p; rodadas++; ultima = p; }
   }
 
-  const media = rodadas ? (tv === 'geral' && t.totalApi != null
-    ? (total / rodadas).toFixed(1)
-    : (total / rodadas).toFixed(1)) : '—';
-  return {total, rodadas, ultima, media};
+  return {total, rodadas, ultima, media: rodadas ? (total / rodadas).toFixed(1) : '—'};
 }
 
 function renderClassificacao() {
