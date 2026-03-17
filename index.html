@@ -130,9 +130,67 @@
   .btn-logout:hover { border-color:var(--vermelho); color:var(--vermelho); }
 
   @media(max-width:640px) {
-    header { padding:0 16px; }
-    main { padding:16px 12px 40px; }
+    /* Header */
+    header { padding:0 12px; height:56px; }
+    .logo-text { font-size:17px; }
+    .logo-sub { display:none; }
+    .logo-icon { width:30px; height:30px; font-size:16px; }
+    #status-pill { display:none; }
+    #btn-refresh { padding:7px 12px; font-size:11px; }
+
+    /* Tabs */
+    .tabs { padding:10px 8px 0; gap:2px; }
+    .tab { padding:8px 10px; font-size:11px; letter-spacing:0; }
+
+    /* Main */
+    main { padding:12px 8px 60px; }
+
+    /* Rodada bar */
+    .rodada-bar { flex-direction:column; align-items:flex-start; gap:8px; margin-bottom:16px; }
+    .rodada-bar h2 { font-size:22px; }
+    .turno-tabs { width:100%; }
+    .turno-btn { flex:1; text-align:center; padding:8px 6px; font-size:11px; }
+
+    /* Tabela classificação — esconde colunas menos importantes */
+    table thead th:nth-child(5),
+    table thead th:nth-child(6),
+    table tbody td:nth-child(5),
+    table tbody td:nth-child(6) { display:none; }
+
+    table thead th { padding:10px 8px; font-size:10px; }
+    table tbody td { padding:10px 8px; }
+    .team-name { font-size:12px; }
+    .team-owner { font-size:10px; }
+    .team-avatar { width:28px; height:28px; }
+    .team-cell { gap:7px; }
+    .pts { font-size:16px; }
+    .pts-rodada { font-size:12px; }
+    .pos-badge { width:22px; height:22px; font-size:11px; border-radius:6px; }
+
+    /* Cards de rodada */
+    .rodada-grid { grid-template-columns:1fr 1fr; gap:10px; margin-top:16px; }
+    .time-card { padding:12px; }
+    .card-pts { font-size:24px; }
+    .team-name { font-size:12px; }
+
+    /* Histórico — scroll horizontal */
+    #historico-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    .historico-header, .historico-row { font-size:11px; padding:8px 10px; min-width:500px; }
+
+    /* Config */
+    .config-section { padding:16px; }
     .turno-config { grid-template-columns:1fr; }
+    .config-grid { grid-template-columns:1fr; }
+    .modal-box { padding:24px 16px; margin:16px; }
+
+    /* Rodada nav */
+    .rodada-nav { padding:4px 8px; }
+    #rodada-label { font-size:13px; min-width:70px; }
+  }
+
+  @media(max-width:380px) {
+    .rodada-grid { grid-template-columns:1fr; }
+    .tab { padding:7px 8px; font-size:10px; }
   }
 </style>
 </head>
