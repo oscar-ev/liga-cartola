@@ -476,6 +476,10 @@ async function carregarTodosOsDados() {
       if (p != null) times[id].pts[rodadaAtual] = p;
       const total = data.pontos_campeonato ?? null;
       if (total != null) times[id].totalAcumulado = toNum(total);
+      // limpa rodadas futuras que possam ter ficado em cache
+      Object.keys(times[id].pts).forEach(r => {
+        if (parseInt(r) > rodadaAtual) delete times[id].pts[r];
+      });
     } catch(e) {}
   }));
 
@@ -490,8 +494,8 @@ async function carregarTodosOsDados() {
 }
 
 async function carregarHistoricoBackground() {
-  for (let r = 1; r < rodadaAtual; r++) {
-    setStatus('loading', `Histórico R${r}/${rodadaAtual - 1}…`);
+  for (let r = 1; r <= rodadaAtual; r++) {
+    setStatus('loading', `Histórico R${r}/${rodadaAtual}…`);
     await Promise.allSettled(cfg.ids.map(async id => {
       if (times[id]?.pts[r] != null) return;
       try {
@@ -499,10 +503,10 @@ async function carregarHistoricoBackground() {
         if (!times[id]) times[id] = { info: null, pts: {}, totalAcumulado: null };
         if (!times[id].info) times[id].info = data;
         const p = extrairPontos(data);
-        if (p != null) times[id].pts[r] = p;
+        // só salva se for rodada válida (já aconteceu)
+        if (p != null && r <= rodadaAtual) times[id].pts[r] = p;
       } catch(e) {}
     }));
-    // atualiza classificação a cada rodada carregada
     renderClassificacao();
   }
   setStatus('live', mercado?.status_mercado === 1 ? 'Mercado Aberto' : `Rodada ${rodadaAtual}`);
@@ -648,38 +652,42 @@ async function loadAndRenderHistorico() {
 }
 
 function renderHistorico() {
-  const rodadas=Array.from({length:rodadaAtual},(_,i)=>i+1);
-  const maxShow=Math.min(rodadas.length,10);
-  const rShow=rodadas.slice(-maxShow);
+  // só rodadas que já aconteceram
+  const rodadas = Array.from({length: rodadaAtual}, (_, i) => i + 1);
+  const maxShow = Math.min(rodadas.length, 10);
+  const rShow = rodadas.slice(-maxShow);
 
-  const tms=cfg.ids.map(id=>{
-    const info=times[id]?.info;
-    const pts=rodadas.map(r=>times[id]?.pts[r]??null);
-    return {nome:info?.time?.nome||`Time #${id}`,foto:info?.time?.foto_perfil||null,pts,total:pts.reduce((s,p)=>s+(p||0),0)};
-  }).sort((a,b)=>b.total-a.total);
+  const tms = cfg.ids.map(id => {
+    const info = times[id]?.info;
+    // CORRIGIDO: usa r como chave direta, não índice
+    const pts = rodadas.map(r => times[id]?.pts[r] ?? null);
+    const total = pts.reduce((s, p) => s + (p || 0), 0);
+    return { nome: info?.time?.nome || `Time #${id}`, foto: info?.time?.foto_perfil || null, pts, total };
+  }).sort((a, b) => b.total - a.total);
 
-  const cols=`40px 1fr ${rShow.map(()=>'56px').join(' ')} 68px`;
-  const header=`<div class="historico-header" style="grid-template-columns:${cols}">
+  const cols = `40px 1fr ${rShow.map(() => '56px').join(' ')} 68px`;
+  const header = `<div class="historico-header" style="grid-template-columns:${cols}">
     <div>#</div><div>Time</div>
-    ${rShow.map(r=>`<div style="text-align:center;font-size:10px">R${r}</div>`).join('')}
+    ${rShow.map(r => `<div style="text-align:center;font-size:10px">R${r}</div>`).join('')}
     <div style="text-align:center">Total</div>
   </div>`;
 
-  const rows=tms.map((t,i)=>{
-    const av=t.foto?`<img class="team-avatar" src="${t.foto}" style="width:28px;height:28px" onerror="this.style.display='none'" />`:`<span>⚽</span>`;
-    const cells=rShow.map(r=>{
-      const idx=rodadas.indexOf(r),p=t.pts[idx];
-      return `<div class="cell pts-val">${p!=null?fmtPts(p):'—'}</div>`;
+  const rows = tms.map((t, i) => {
+    const av = t.foto ? `<img class="team-avatar" src="${t.foto}" style="width:28px;height:28px" onerror="this.style.display='none'" />` : `<span>⚽</span>`;
+    const cells = rShow.map(r => {
+      // CORRIGIDO: índice correto dentro do array pts (base 0)
+      const p = t.pts[r - 1];
+      return `<div class="cell pts-val">${p != null ? fmtPts(p) : '—'}</div>`;
     }).join('');
     return `<div class="historico-row" style="grid-template-columns:${cols}">
-      <div class="cell" style="color:var(--texto-dim);font-weight:700">${i+1}</div>
+      <div class="cell" style="color:var(--texto-dim);font-weight:700">${i + 1}</div>
       <div class="team-cell" style="gap:8px">${av}<span style="font-weight:600;font-size:12px">${esc(t.nome)}</span></div>
       ${cells}
       <div class="cell pts-val" style="font-size:18px">${fmtPts(t.total)}</div>
     </div>`;
   }).join('');
 
-  document.getElementById('historico-wrap').innerHTML=header+rows;
+  document.getElementById('historico-wrap').innerHTML = header + rows;
 }
 
 function fillConfigUI() {
