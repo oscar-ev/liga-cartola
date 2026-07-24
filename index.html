@@ -682,6 +682,15 @@ function faixa(tv) {
   return {ini: 1, fim: rodadaAtual};
 }
 
+// ── CORRIGIDO ──────────────────────────────────────
+// Antes, o 2º turno só somava rodada a rodada quando "rodadaAtual > cfg.t1fim".
+// Isso fazia com que, exatamente na última rodada do 1º turno (ex: rodada 19 == t1fim 19),
+// a condição fosse falsa e o código caísse no "else", usando o totalAcumulado da API
+// (que é o total da temporada INTEIRA, incluindo o 1º turno) — por isso o 2º turno
+// aparecia com os mesmos pontos do 1º turno em vez de zerado.
+// Agora: o 1º turno usa o total exato da API (pontos_campeonato).
+// O 2º turno (e qualquer outra visão) SEMPRE soma rodada a rodada dentro do próprio
+// intervalo configurado — se nenhuma rodada do período ainda aconteceu, o total é 0.
 function pontosTime(id, tv) {
   const t = times[id];
   if (!t) return {total:0, rodadas:0, ultima:null, media:'—'};
@@ -696,15 +705,16 @@ function pontosTime(id, tv) {
 
   let total = 0;
 
-  if (tv === 'turno2' && rodadaAtual > cfg.t1fim) {
-    // 2º turno: soma apenas rodadas do período (histórico rodada a rodada)
+  if (tv === 'turno1') {
+    // 1º turno: usa pontos_campeonato exato do Cartola
+    total = t.totalAcumulado ?? 0;
+  } else {
+    // 2º turno (ou geral): soma rodada a rodada dentro do período configurado.
+    // Se rodadaAtual ainda não chegou em "ini", o total naturalmente fica 0.
     for (let r = ini; r <= Math.min(fim, rodadaAtual); r++) {
       const p = t.pts[r];
       if (p != null) total += p;
     }
-  } else {
-    // 1º turno (ou enquanto estiver no 1º): usa pontos_campeonato exato do Cartola
-    total = t.totalAcumulado ?? 0;
   }
 
   return { total, rodadas, ultima, media: rodadas ? (total / rodadas).toFixed(2).replace('.', ',') : '—' };
@@ -860,7 +870,7 @@ function toast(msg){
 
 // ── SISTEMA DE SENHA ADMIN ──────────────────────
 const SENHA_KEY = 'liga_admin_hash';
-const DEFAULT_SENHA = 'admin123'; // senha padrão inicial
+const DEFAULT_SENHA = '17dejaneiro'; // senha padrão inicial
 
 async function hashSenha(s) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
