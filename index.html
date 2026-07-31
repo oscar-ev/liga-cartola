@@ -261,11 +261,7 @@
 <main>
   <div id="tab-classificacao" class="tab-content active">
     <div class="rodada-bar">
-      <h2 id="classif-titulo">1º Turno</h2>
-      <div class="turno-tabs">
-        <button class="turno-btn active" onclick="setTurnoView('turno1',this)">1º Turno</button>
-        <button class="turno-btn" onclick="setTurnoView('turno2',this)">2º Turno</button>
-      </div>
+      <h2 id="classif-titulo">2º Turno</h2>
     </div>
     <div class="table-wrap">
       <table>
@@ -443,7 +439,9 @@ let proxyIdx = 0;
 
 let cfg = loadCfg();
 // times[id] = { info, pts: { rodada: pontos }, totalAcumulado: number|null }
-let times = {}, mercado = null, rodadaAtual = 1, rodadaVisu = 1, turnoView = 'turno1';
+let times = {}, mercado = null, rodadaAtual = 1, rodadaVisu = 1;
+// Só existe a visão do 2º turno agora (1º turno já encerrado e consultável só via API/pontos_campeonato se precisar no futuro)
+const turnoView = 'turno2';
 
 function loadCfg() {
   try { const s=localStorage.getItem('liga_cfg'); if(s) return JSON.parse(s); } catch(e){}
@@ -500,6 +498,7 @@ async function initApp() {
   setStatus('loading', 'Conectando…');
   document.getElementById('btn-refresh').disabled = true;
   fillConfigUI();
+  atualizarTituloClassificacao();
 
   try {
     mercado = await apiFetch('/mercado/status');
@@ -616,10 +615,28 @@ async function carregarTodosOsDados() {
     } catch(e) {}
   }));
 
-  // Renderiza imediatamente com totalAcumulado
+  // Renderiza imediatamente com o que já temos (pode estar incompleto)
   renderClassificacao();
   renderRodada();
-  // histórico só carrega quando o usuário clicar na aba
+
+  // Garante que TODAS as rodadas do 2º turno já disputadas estejam carregadas,
+  // pois a classificação agora soma rodada a rodada (não usa mais o total pronto da API).
+  await carregarRodadasTurno2();
+  renderClassificacao();
+}
+
+// Busca (se ainda não estiver em cache) a pontuação de cada rodada do 2º turno
+// já disputada, de cfg.t2ini até a rodada atual. Necessário para o acumulado
+// da classificação ficar correto, já que a API só devolve o total da temporada
+// inteira em /time/id/{id}, não o total por turno.
+async function carregarRodadasTurno2() {
+  const ini = cfg.t2ini;
+  const fim = Math.min(cfg.t2fim, rodadaAtual);
+  if (rodadaAtual < ini) return; // 2º turno ainda não começou, nada a carregar
+  for (let r = ini; r <= fim; r++) {
+    setStatus('loading', `Carregando R${r}/${fim}…`);
+    await loadRodadaHistorica(r);
+  }
 }
 
 async function carregarHistoricoBackground() {
@@ -668,52 +685,34 @@ function showTab(name, el) {
   if (name==='historico') loadAndRenderHistorico();
 }
 
-function setTurnoView(v, el) {
-  turnoView = v;
-  document.querySelectorAll('.turno-btn').forEach(b => b.classList.remove('active'));
-  el.classList.add('active');
-  document.getElementById('classif-titulo').textContent = {turno1:'1º Turno', turno2:'2º Turno'}[v];
-  renderClassificacao();
-}
-
 function faixa(tv) {
-  if (tv === 'turno1') return {ini: cfg.t1ini, fim: cfg.t1fim};
   if (tv === 'turno2') return {ini: cfg.t2ini, fim: cfg.t2fim};
   return {ini: 1, fim: rodadaAtual};
 }
 
-// ── CORRIGIDO ──────────────────────────────────────
-// Antes, o 2º turno só somava rodada a rodada quando "rodadaAtual > cfg.t1fim".
-// Isso fazia com que, exatamente na última rodada do 1º turno (ex: rodada 19 == t1fim 19),
-// a condição fosse falsa e o código caísse no "else", usando o totalAcumulado da API
-// (que é o total da temporada INTEIRA, incluindo o 1º turno) — por isso o 2º turno
-// aparecia com os mesmos pontos do 1º turno em vez de zerado.
-// Agora: o 1º turno usa o total exato da API (pontos_campeonato).
-// O 2º turno (e qualquer outra visão) SEMPRE soma rodada a rodada dentro do próprio
-// intervalo configurado — se nenhuma rodada do período ainda aconteceu, o total é 0.
+// Atualiza o título com o intervalo de rodadas configurado (ex: "2º Turno · Rodadas 20 a 38")
+function atualizarTituloClassificacao() {
+  const el = document.getElementById('classif-titulo');
+  if (el) el.textContent = `2º Turno · Rodadas ${cfg.t2ini} a ${cfg.t2fim}`;
+}
+
+// Soma SEMPRE rodada a rodada dentro do intervalo configurado (ex: 20 a 38).
+// Se nenhuma rodada do período ainda aconteceu, o total fica 0 naturalmente.
+// IMPORTANTE: isso só funciona corretamente se os dados de cada rodada do período
+// já tiverem sido carregados (ver carregarRodadasTurno2, chamada no início e a cada refresh).
 function pontosTime(id, tv) {
   const t = times[id];
   if (!t) return {total:0, rodadas:0, ultima:null, media:'—'};
 
   const {ini, fim} = faixa(tv);
-  let rodadas = 0, ultima = null;
+  let rodadas = 0, ultima = null, total = 0;
 
   for (let r = ini; r <= Math.min(fim, rodadaAtual); r++) {
     const p = t.pts[r];
-    if (p != null) { rodadas++; ultima = p; }
-  }
-
-  let total = 0;
-
-  if (tv === 'turno1') {
-    // 1º turno: usa pontos_campeonato exato do Cartola
-    total = t.totalAcumulado ?? 0;
-  } else {
-    // 2º turno (ou geral): soma rodada a rodada dentro do período configurado.
-    // Se rodadaAtual ainda não chegou em "ini", o total naturalmente fica 0.
-    for (let r = ini; r <= Math.min(fim, rodadaAtual); r++) {
-      const p = t.pts[r];
-      if (p != null) total += p;
+    if (p != null) {
+      rodadas++;
+      ultima = p;
+      total += p;
     }
   }
 
@@ -848,8 +847,9 @@ function salvarConfig() {
   cfg.t2fim=+document.getElementById('cfg-t2-fim').value||38;
   saveCfg();
   document.getElementById('liga-nome-header').textContent=cfg.nome;
-  toast('✅ Configurações salvas!');
-  renderClassificacao();
+  atualizarTituloClassificacao();
+  toast('✅ Configurações salvas! Atualizando rodadas…');
+  carregarRodadasTurno2().then(renderClassificacao);
 }
 
 function salvarIds() {
