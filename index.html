@@ -428,12 +428,14 @@ const DEFAULT_IDS = [698657,5600270,47659601,4595756,6502610,11667690,17902624,4
 const API  = 'https://api.cartola.globo.com';
 const API2 = 'https://api.cartolafc.globo.com'; // fallback
 
+// Proxy próprio (Cloudflare Worker) primeiro — mais estável que os públicos.
+// Os públicos ficam como fallback caso o worker esteja indisponível.
 const PROXIES = [
+  u => `https://liga-cartola-proxy.oscarevangelista-bkp.workers.dev/?url=${encodeURIComponent(u)}`,
   u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-  u => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,
-  u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
-  u => `https://thingproxy.freeboard.io/fetch/${u}`,
   u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+  u => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,
+  u => `https://thingproxy.freeboard.io/fetch/${u}`,
 ];
 let proxyIdx = 0;
 
@@ -466,7 +468,7 @@ async function apiFetch(path) {
         const data = JSON.parse(text);
         proxyIdx = idx;
         return data;
-      } catch(e) { /* tenta próximo */ }
+      } catch(e) { console.warn('proxy falhou:', PROXIES[idx](full), e.message); }
     }
   }
   throw new Error('Todos os proxies falharam');
