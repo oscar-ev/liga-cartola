@@ -811,25 +811,36 @@ function renderRodada() {
 }
 
 async function loadAndRenderHistorico() {
-  document.getElementById('historico-wrap').innerHTML=`<div class="empty-state"><div class="icon">⏳</div><p>Carregando ${rodadaAtual} rodadas…</p></div>`;
+  const ini = cfg.t2ini;
+  const fim = Math.min(cfg.t2fim, rodadaAtual);
+  if (rodadaAtual < ini) {
+    document.getElementById('historico-wrap').innerHTML = `<div class="empty-state"><div class="icon">📅</div><p>O 2º turno ainda não começou (rodada ${ini}).</p></div>`;
+    setStatus('live', mercado?.status_mercado === 1 ? 'Mercado Aberto' : `Rodada ${rodadaAtual}`);
+    return;
+  }
+  document.getElementById('historico-wrap').innerHTML=`<div class="empty-state"><div class="icon">⏳</div><p>Carregando rodadas ${ini} a ${fim}…</p></div>`;
   setStatus('loading','Carregando histórico…');
-  for(let r=1;r<=rodadaAtual;r++) await loadRodadaHistorica(r);
+  for(let r=ini;r<=fim;r++) await loadRodadaHistorica(r);
   setStatus('live',`Rodada ${rodadaAtual}`);
   renderHistorico();
 }
 
 function renderHistorico() {
-  // só rodadas que já aconteceram
-  const rodadas = Array.from({length: rodadaAtual}, (_, i) => i + 1);
+  // só as rodadas do 2º turno que já aconteceram
+  const ini = cfg.t2ini;
+  const fim = Math.min(cfg.t2fim, rodadaAtual);
+  if (rodadaAtual < ini) {
+    document.getElementById('historico-wrap').innerHTML = `<div class="empty-state"><div class="icon">📅</div><p>O 2º turno ainda não começou (rodada ${ini}).</p></div>`;
+    return;
+  }
+  const rodadas = Array.from({length: fim - ini + 1}, (_, i) => ini + i);
   const maxShow = Math.min(rodadas.length, 10);
   const rShow = rodadas.slice(-maxShow);
 
   const tms = cfg.ids.map(id => {
     const info = times[id]?.info;
-    // CORRIGIDO: usa r como chave direta, não índice
-    const pts = rodadas.map(r => times[id]?.pts[r] ?? null);
-    const total = pts.reduce((s, p) => s + (p || 0), 0);
-    return { nome: info?.time?.nome || `Time #${id}`, foto: info?.time?.foto_perfil || null, pts, total };
+    const total = rodadas.reduce((s, r) => s + (times[id]?.pts[r] || 0), 0);
+    return { id, nome: info?.time?.nome || `Time #${id}`, foto: info?.time?.foto_perfil || null, total };
   }).sort((a, b) => b.total - a.total);
 
   const cols = `40px 1fr ${rShow.map(() => '56px').join(' ')} 68px`;
@@ -842,8 +853,7 @@ function renderHistorico() {
   const rows = tms.map((t, i) => {
     const av = t.foto ? `<img class="team-avatar" src="${t.foto}" style="width:28px;height:28px" onerror="this.style.display='none'" />` : `<span>⚽</span>`;
     const cells = rShow.map(r => {
-      // CORRIGIDO: índice correto dentro do array pts (base 0)
-      const p = t.pts[r - 1];
+      const p = times[t.id]?.pts[r];
       return `<div class="cell pts-val">${p != null ? fmtPts(p) : '—'}</div>`;
     }).join('');
     return `<div class="historico-row" style="grid-template-columns:${cols}">
