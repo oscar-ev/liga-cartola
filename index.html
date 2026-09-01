@@ -653,13 +653,21 @@ async function carregarTodosOsDados() {
     } catch(e) {}
   }));
 
-  // Renderiza imediatamente com o que já temos (pode estar incompleto)
-  renderClassificacao();
+  // A aba "Rodada" pode mostrar já — ela só depende da rodada atual mesmo.
   renderRodada();
 
+  // NÃO renderiza a Classificação ainda. Se render­izássemos agora, ela
+  // ficaria baseada só na pontuação da última rodada (não no total do
+  // turno), mostrando um "líder" errado que muda várias vezes conforme
+  // as rodadas anteriores vão chegando. Esperamos o turno inteiro carregar.
+  const tb = document.getElementById('tbody-classif');
+  if (tb) tb.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="icon">⏳</div><p>Somando as rodadas do 2º turno para fechar a classificação…</p></div></td></tr>`;
+
   // Garante que TODAS as rodadas do 2º turno já disputadas estejam carregadas,
-  // pois a classificação agora soma rodada a rodada (não usa mais o total pronto da API).
+  // pois a classificação soma rodada a rodada (não usa o total pronto da API).
   await carregarRodadasTurno2();
+
+  // Só agora a classificação é exibida, já com o total completo e correto.
   renderClassificacao();
 }
 
@@ -671,10 +679,22 @@ async function carregarRodadasTurno2() {
   const ini = cfg.t2ini;
   const fim = Math.min(cfg.t2fim, rodadaAtual);
   if (rodadaAtual < ini) return; // 2º turno ainda não começou, nada a carregar
-  for (let r = ini; r <= fim; r++) {
-    setStatus('loading', `Carregando R${r}/${fim}…`);
+
+  const faltantes = [];
+  for (let r = ini; r <= fim; r++) faltantes.push(r);
+
+  setStatus('loading', `Carregando rodadas ${ini} a ${fim}…`);
+
+  // Dispara todas as rodadas em paralelo (o navegador naturalmente limita
+  // conexões simultâneas por domínio, então isso não sobrecarrega nada —
+  // só evita o tempo morto de esperar cada rodada terminar antes de
+  // começar a próxima).
+  let concluidas = 0;
+  await Promise.all(faltantes.map(async r => {
     await loadRodadaHistorica(r);
-  }
+    concluidas++;
+    setStatus('loading', `Rodadas ${concluidas}/${faltantes.length}…`);
+  }));
 }
 
 async function carregarHistoricoBackground() {
@@ -851,7 +871,9 @@ async function loadAndRenderHistorico() {
   }
   document.getElementById('historico-wrap').innerHTML=`<div class="empty-state"><div class="icon">⏳</div><p>Carregando rodadas ${ini} a ${fim}…</p></div>`;
   setStatus('loading','Carregando histórico…');
-  for(let r=ini;r<=fim;r++) await loadRodadaHistorica(r);
+  const rodadasFaltantes = [];
+  for (let r = ini; r <= fim; r++) rodadasFaltantes.push(r);
+  await Promise.all(rodadasFaltantes.map(r => loadRodadaHistorica(r)));
   setStatus('live',`Rodada ${rodadaAtual}`);
   renderHistorico();
 }
