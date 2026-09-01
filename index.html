@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Liga Cartola FC</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <style>
   :root {
     --verde: #00c853; --verde-escuro: #009624; --verde-dim: #1a3d2b;
@@ -93,6 +95,11 @@
   .config-field input:focus { border-color:var(--verde); }
   .btn-save { margin-top:16px; background:var(--verde); color:#000; border:none; border-radius:8px; padding:10px 24px; font-weight:700; font-size:13px; cursor:pointer; text-transform:uppercase; transition:background .2s; }
   .btn-save:hover { background:#00e676; }
+  .btn-pdf { display:flex; align-items:center; gap:6px; background:var(--preto-card); border:1px solid var(--verde-dim); color:var(--verde); border-radius:8px; padding:9px 16px; font-size:12px; font-weight:700; cursor:pointer; text-transform:uppercase; letter-spacing:.5px; transition:all .2s; }
+  .btn-pdf:hover { background:var(--verde); color:#000; }
+  .btn-pdf.completo { background:var(--verde); color:#000; }
+  .turno-status { font-size:11px; color:var(--texto-dim); margin-top:4px; }
+  .turno-status.ok { color:var(--verde); font-weight:600; }
   .turno-config { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
   .turno-box { background:var(--preto-card2); border:1px solid var(--borda); border-radius:10px; padding:16px; }
   .turno-box h4 { font-size:13px; font-weight:700; color:var(--azul); margin-bottom:12px; text-transform:uppercase; }
@@ -287,7 +294,11 @@
 <main>
   <div id="tab-classificacao" class="tab-content active">
     <div class="rodada-bar">
-      <h2 id="classif-titulo">2º Turno</h2>
+      <div>
+        <h2 id="classif-titulo">2º Turno</h2>
+        <div class="turno-status" id="turno-status"></div>
+      </div>
+      <button class="btn-pdf" id="btn-pdf" onclick="gerarPDF()">📄 Gerar PDF do Ranking</button>
     </div>
     <div class="table-wrap">
       <table>
@@ -541,6 +552,7 @@ async function initApp() {
   rodadaVisu = rodadaAtual;
   document.getElementById('rodada-label').textContent = `Rodada ${rodadaVisu}`;
   updateNavBtns();
+  atualizarStatusTurno();
 
   setStatus('loading', 'Buscando times…');
   await carregarTodosOsDados();
@@ -722,6 +734,27 @@ function faixa(tv) {
 function atualizarTituloClassificacao() {
   const el = document.getElementById('classif-titulo');
   if (el) el.textContent = `2º Turno · Rodadas ${cfg.t2ini} a ${cfg.t2fim}`;
+  atualizarStatusTurno();
+}
+
+// true quando todas as rodadas do 2º turno já foram disputadas
+function turnoCompleto() {
+  return rodadaAtual >= cfg.t2fim;
+}
+
+function atualizarStatusTurno() {
+  const el = document.getElementById('turno-status');
+  const btn = document.getElementById('btn-pdf');
+  if (!el || !btn) return;
+  if (turnoCompleto()) {
+    el.textContent = '✅ Turno finalizado — ranking definitivo';
+    el.className = 'turno-status ok';
+    btn.classList.add('completo');
+  } else {
+    el.textContent = `⏳ Em andamento — rodada ${Math.min(rodadaAtual, cfg.t2fim)} de ${cfg.t2fim}`;
+    el.className = 'turno-status';
+    btn.classList.remove('completo');
+  }
 }
 
 // Soma SEMPRE rodada a rodada dentro do intervalo configurado (ex: 20 a 38).
@@ -888,6 +921,88 @@ function salvarConfig() {
   atualizarTituloClassificacao();
   toast('✅ Configurações salvas! Atualizando rodadas…');
   carregarRodadasTurno2().then(renderClassificacao);
+}
+
+// ── GERAR PDF DO RANKING ─────────────────────────
+async function gerarPDF() {
+  if (typeof window.jspdf === 'undefined') {
+    toast('❌ Biblioteca de PDF não carregou. Verifique sua internet e tente de novo.');
+    return;
+  }
+
+  if (!turnoCompleto()) {
+    const seguir = confirm(
+      `O 2º turno ainda não terminou (estamos na rodada ${rodadaAtual} de ${cfg.t2fim}).\n\n` +
+      `Deseja gerar o PDF mesmo assim, com o ranking PARCIAL até agora?`
+    );
+    if (!seguir) return;
+  }
+
+  const dados = cfg.ids.map(id => {
+    const info = times[id]?.info;
+    const { total, rodadas, media } = pontosTime(id, turnoView);
+    return {
+      nome: info?.time?.nome || `Time #${id}`,
+      dono: info?.time?.nome_cartola || '—',
+      total, rodadas, media
+    };
+  }).sort((a, b) => b.total - a.total);
+
+  if (dados.every(d => d.total === 0)) {
+    toast('❌ Ainda não há pontuações carregadas para gerar o PDF.');
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const statusTxt = turnoCompleto() ? 'Ranking Final' : `Ranking Parcial (até a rodada ${rodadaAtual})`;
+
+  doc.setFontSize(18);
+  doc.setTextColor(20);
+  doc.text(cfg.nome, 14, 18);
+
+  doc.setFontSize(11);
+  doc.setTextColor(90);
+  doc.text(`${statusTxt} · 2º Turno · Rodadas ${cfg.t2ini} a ${cfg.t2fim}`, 14, 26);
+
+  const rows = dados.map((d, i) => [
+    i + 1,
+    d.nome,
+    d.dono,
+    fmtPts(d.total),
+    d.rodadas,
+    d.media
+  ]);
+
+  doc.autoTable({
+    startY: 34,
+    head: [['#', 'Time', 'Dono', 'Pts Total', 'Rodadas', 'Média']],
+    body: rows,
+    styles: { fontSize: 10, cellPadding: 5 },
+    headStyles: { fillColor: [0, 200, 83], textColor: 20, fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [245, 250, 246] },
+    columnStyles: {
+      0: { halign: 'center', cellWidth: 12 },
+      3: { halign: 'center' },
+      4: { halign: 'center' },
+      5: { halign: 'center' }
+    },
+    didParseCell: function (data) {
+      if (data.section === 'body' && data.row.index < 3 && data.column.index === 0) {
+        data.cell.styles.fontStyle = 'bold';
+      }
+    }
+  });
+
+  const dataGeracao = new Date().toLocaleString('pt-BR');
+  const finalY = doc.lastAutoTable.finalY || 34;
+  doc.setFontSize(9);
+  doc.setTextColor(140);
+  doc.text(`Gerado em ${dataGeracao}`, 14, doc.internal.pageSize.height - 10);
+
+  const nomeArquivo = `ranking-${cfg.nome.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-r${cfg.t2ini}-${Math.min(rodadaAtual, cfg.t2fim)}.pdf`;
+  doc.save(nomeArquivo);
+  toast('✅ PDF gerado com sucesso!');
 }
 
 function salvarIds() {
