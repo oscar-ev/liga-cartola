@@ -5,8 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Liga Cartola FC</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <style>
   :root {
     --verde: #00c853; --verde-escuro: #009624; --verde-dim: #1a3d2b;
@@ -924,9 +922,59 @@ function salvarConfig() {
 }
 
 // ── GERAR PDF DO RANKING ─────────────────────────
+// jsPDF é carregado sob demanda (só quando o botão é clicado), com vários
+// CDNs de fallback, para não depender de um único servidor estar no ar
+// no momento em que a página inicial carregou.
+const PDF_CDNS = [
+  ['https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js', 'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js'],
+  ['https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js', 'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js'],
+  ['https://unpkg.com/jspdf@2.5.2/dist/jspdf.umd.min.js', 'https://unpkg.com/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js'],
+];
+
+function carregarScript(src) {
+  return new Promise((resolve, reject) => {
+    // já existe uma tag com essa URL? não duplica
+    if (document.querySelector(`script[src="${src}"]`)) return resolve();
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('falha ao carregar ' + src));
+    document.head.appendChild(s);
+  });
+}
+
+async function garantirJsPDF() {
+  const pronta = () => typeof window.jspdf !== 'undefined'
+    && window.jspdf.jsPDF
+    && typeof window.jspdf.jsPDF.API.autoTable === 'function';
+
+  if (pronta()) return true;
+
+  for (const [libUrl, autoUrl] of PDF_CDNS) {
+    try {
+      if (typeof window.jspdf === 'undefined') await carregarScript(libUrl);
+      if (!window.jspdf?.jsPDF?.API?.autoTable) await carregarScript(autoUrl);
+      if (pronta()) return true;
+    } catch (e) {
+      console.warn('CDN de PDF falhou, tentando próximo:', e.message);
+    }
+  }
+  return false;
+}
+
 async function gerarPDF() {
-  if (typeof window.jspdf === 'undefined') {
-    toast('❌ Biblioteca de PDF não carregou. Verifique sua internet e tente de novo.');
+  const btn = document.getElementById('btn-pdf');
+  const textoOriginal = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳ Preparando…';
+
+  const ok = await garantirJsPDF();
+
+  btn.disabled = false;
+  btn.textContent = textoOriginal;
+
+  if (!ok) {
+    toast('❌ Não consegui carregar a biblioteca de PDF em nenhum servidor. Verifique sua internet e tente de novo.');
     return;
   }
 
