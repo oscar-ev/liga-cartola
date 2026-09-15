@@ -487,6 +487,69 @@ function loadCfg() {
 }
 function saveCfg() { localStorage.setItem('liga_cfg', JSON.stringify(cfg)); }
 
+// ── CACHE DE RODADAS ENCERRADAS ───────────────────
+// Uma rodada que já terminou (r < rodadaAtual) nunca mais muda de pontuação.
+// Sem esse cache, todo "Atualizar" rebuscava TODAS as rodadas de TODOS os
+// times do zero (rodadas × times chamadas!), sobrecarregando os proxies
+// gratuitos. Guardando localmente, só sobra pra buscar de fato a rodada
+// que ainda está em andamento.
+const PTS_CACHE_KEY = 'liga_pts_cache_v1';
+
+function loadPtsCache() {
+  try { const s = localStorage.getItem(PTS_CACHE_KEY); if (s) return JSON.parse(s); } catch(e) {}
+  return {};
+}
+
+// Só persiste rodadas < rodadaAtual (fechadas/imutáveis). A rodada em
+// andamento nunca é salva aqui, pra nunca arriscar guardar uma pontuação
+// "ao vivo" ainda incompleta como se fosse definitiva.
+function savePtsCache() {
+  const cache = {};
+  for (const id in times) {
+    const pts = times[id]?.pts;
+    if (!pts) continue;
+    const fechadas = {};
+    for (const r in pts) {
+      if (parseInt(r) < rodadaAtual) fechadas[r] = pts[r];
+    }
+    if (Object.keys(fechadas).length) cache[id] = fechadas;
+  }
+  try { localStorage.setItem(PTS_CACHE_KEY, JSON.stringify(cache)); } catch(e) {}
+}
+
+// Popula o cache em memória com o que já sabemos do localStorage, antes de
+// sair buscando na API. loadRodadaHistorica() já pula rodadas já presentes
+// no cache, então isso reduz drasticamente as chamadas de rede.
+function seedPtsCache() {
+  const cache = loadPtsCache();
+  cfg.ids.forEach(id => {
+    if (!times[id]) times[id] = { info: null, pts: {}, totalAcumulado: null };
+    const cached = cache[id];
+    if (!cached) return;
+    for (const r in cached) {
+      if (parseInt(r) < rodadaAtual) times[id].pts[r] = cached[r];
+    }
+  });
+}
+
+// ── LIMITADOR DE CHAMADAS SIMULTÂNEAS ─────────────
+// Disparar 100+ chamadas de uma vez sobrecarrega os proxies gratuitos
+// (rate limit → mais timeouts → mais retentativas → mais lentidão ainda).
+// Isso limita a no máximo N chamadas de API em voo ao mesmo tempo,
+// em toda a aplicação (é uma fila global compartilhada).
+function criarLimitador(max) {
+  let ativos = 0;
+  const fila = [];
+  function proximo() {
+    if (ativos >= max || fila.length === 0) return;
+    ativos++;
+    const { fn, resolve, reject } = fila.shift();
+    fn().then(resolve, reject).finally(() => { ativos--; proximo(); });
+  }
+  return fn => new Promise((resolve, reject) => { fila.push({ fn, resolve, reject }); proximo(); });
+}
+const limitarApi = criarLimitador(6);
+
 // Tenta todos os proxies com os dois domínios da API
 async function apiFetch(path) {
   const urls = [API + path, API2 + path];
@@ -552,6 +615,10 @@ async function initApp() {
   document.getElementById('rodada-label').textContent = `Rodada ${rodadaVisu}`;
   updateNavBtns();
   atualizarStatusTurno();
+
+  // recupera do cache local as rodadas que já encerraram — evita rebuscar
+  // na API algo que já sabemos e nunca vai mudar
+  seedPtsCache();
 
   setStatus('loading', 'Buscando times…');
   await carregarTodosOsDados();
@@ -637,8 +704,9 @@ function agendarProximoRefresh(intervalo, statusLabel) {
 // 2. Para cada rodada passada, busca /time/id/{id}/{rodada} → pontos históricos
 // Isso é exatamente o que o Parciais CFC faz
 async function carregarTodosOsDados() {
-  // Passo 1: busca info atual de todos os times em paralelo
-  await Promise.allSettled(cfg.ids.map(async id => {
+  // Passo 1: busca info atual de todos os times (limitado a N por vez, pra não
+  // sobrecarregar os proxies gratuitos)
+  await Promise.allSettled(cfg.ids.map(id => limitarApi(async () => {
     try {
       const data = await apiFetch(`/time/id/${id}`);
       if (!times[id]) times[id] = { info: null, pts: {}, totalAcumulado: null };
@@ -652,7 +720,7 @@ async function carregarTodosOsDados() {
         if (parseInt(r) > rodadaAtual) delete times[id].pts[r];
       });
     } catch(e) {}
-  }));
+  })));
 
   // A aba "Rodada" pode mostrar já — ela só depende da rodada atual mesmo.
   renderRodada();
@@ -666,7 +734,10 @@ async function carregarTodosOsDados() {
 
   // Garante que TODAS as rodadas do 2º turno já disputadas estejam carregadas,
   // pois a classificação soma rodada a rodada (não usa o total pronto da API).
+  // Graças ao seedPtsCache() no início, rodadas já encerradas nem chegam a
+  // gerar chamada de rede aqui — só a rodada em andamento é buscada de fato.
   await carregarRodadasTurno2();
+  savePtsCache();
 
   // Só agora a classificação é exibida, já com o total completo e correto.
   renderClassificacao();
@@ -718,7 +789,7 @@ async function carregarHistoricoBackground() {
 }
 
 async function loadRodadaHistorica(r) {
-  await Promise.allSettled(cfg.ids.map(async id => {
+  await Promise.allSettled(cfg.ids.map(id => limitarApi(async () => {
     if (times[id]?.pts[r] != null) return;
     try {
       const data = await apiFetch(`/time/id/${id}/${r}`);
@@ -727,7 +798,7 @@ async function loadRodadaHistorica(r) {
       const p = extrairPontos(data);
       if (p != null) times[id].pts[r] = p;
     } catch(e) {}
-  }));
+  })));
 }
 
 async function refreshAll() {
@@ -799,12 +870,19 @@ function pontosTime(id, tv) {
   return { total, rodadas, ultima, media: rodadas ? (total / rodadas).toFixed(2).replace('.', ',') : '—' };
 }
 
-function renderClassificacao() {
-  const dados = cfg.ids.map(id=>{
+// Fonte única de verdade para a ordem/pontuação da liga. Usada tanto pela
+// tabela de Classificação quanto pelo modal de perfil do time, para os dois
+// nunca ficarem "dessincronizados" mostrando totais diferentes.
+function computeClassificacaoDados() {
+  return cfg.ids.map(id=>{
     const info=times[id]?.info;
     const {total,rodadas,ultima,media}=pontosTime(id,turnoView);
     return {id,nome:info?.time?.nome||`Time #${id}`,dono:info?.time?.nome_cartola||'—',foto:info?.time?.foto_perfil||null,total,rodadas,ultima,media};
   }).sort((a,b)=>b.total-a.total);
+}
+
+function renderClassificacao() {
+  const dados = computeClassificacaoDados();
 
   const tb=document.getElementById('tbody-classif');
   if (dados.every(d=>d.total===0)) {
@@ -841,6 +919,9 @@ async function navRodada(dir) {
     setStatus('loading',`Carregando R${nova}…`);
     await loadRodadaHistorica(nova);
     setStatus('live',`Rodada ${rodadaAtual}`);
+    // essa rodada pode ter preenchido um "buraco" que a Classificação ainda não tinha
+    renderClassificacao();
+    savePtsCache();
   }
   renderRodada();
 }
@@ -877,6 +958,9 @@ async function loadAndRenderHistorico() {
   await Promise.all(rodadasFaltantes.map(r => loadRodadaHistorica(r)));
   setStatus('live',`Rodada ${rodadaAtual}`);
   renderHistorico();
+  // idem: pode ter preenchido rodadas que a Classificação ainda não tinha
+  renderClassificacao();
+  savePtsCache();
 }
 
 function renderHistorico() {
@@ -1204,10 +1288,8 @@ async function abrirModalTime(id, posicao) {
   document.getElementById('mt-dono').textContent = dono;
   document.getElementById('mt-pos').textContent = `${posicao}º`;
 
-  const { total, rodadas, media } = pontosTime(id, turnoView);
-  document.getElementById('mt-total').textContent = fmtPts(total);
-  document.getElementById('mt-rodadas').textContent = rodadas;
-  document.getElementById('mt-media').textContent = media;
+  // preenche com o que já está em cache (pode estar incompleto — só um "chute" inicial)
+  atualizarStatsModal(id, posicao);
 
   // mostra modal
   document.getElementById('modal-time').classList.add('show');
@@ -1217,7 +1299,29 @@ async function abrirModalTime(id, posicao) {
   // carrega histórico (somente a partir do início do 2º turno) se não tiver
   await loadRodadaHistorica_time(id);
 
+  // agora que o cache está completo, recalcula os stats do modal com o dado real…
+  atualizarStatsModal(id, posicao);
   renderBarrasTime(id);
+
+  // …e sincroniza a Classificação geral, que usa o MESMO cache: se alguma
+  // rodada estava faltando ali (foi só carregada agora, por causa deste
+  // modal), ela precisa refletir o total e a posição corretos também,
+  // em vez de ficar desatualizada até o próximo "Atualizar".
+  renderClassificacao();
+  savePtsCache();
+}
+
+function atualizarStatsModal(id, posicaoFallback) {
+  const { total, rodadas, media } = pontosTime(id, turnoView);
+  document.getElementById('mt-total').textContent = fmtPts(total);
+  document.getElementById('mt-rodadas').textContent = rodadas;
+  document.getElementById('mt-media').textContent = media;
+
+  // recalcula a posição real (pode ter mudado se alguma rodada só chegou agora)
+  const dados = computeClassificacaoDados();
+  const idx = dados.findIndex(d => d.id === id);
+  const posicaoAtual = idx >= 0 ? idx + 1 : posicaoFallback;
+  document.getElementById('mt-pos').textContent = `${posicaoAtual}º`;
 }
 
 async function loadRodadaHistorica_time(id) {
@@ -1229,14 +1333,14 @@ async function loadRodadaHistorica_time(id) {
   }
   if (faltam.length === 0) return;
 
-  await Promise.allSettled(faltam.map(async r => {
+  await Promise.allSettled(faltam.map(r => limitarApi(async () => {
     try {
       const data = await apiFetch(`/time/id/${id}/${r}`);
       if (!times[id]) times[id] = { info: null, pts: {}, totalAcumulado: null };
       const p = extrairPontos(data);
       if (p != null && r <= rodadaAtual) times[id].pts[r] = p;
     } catch(e) {}
-  }));
+  })));
 }
 
 function renderBarrasTime(id) {
